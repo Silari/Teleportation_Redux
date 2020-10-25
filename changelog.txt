@@ -1,0 +1,40 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+  Bugfixes:
+    - Beacon list is resorted after a successful teleportation if it's using 'nearest to player' beacon sorting.
+  Changes:
+    - Telelogistics tech now requires Teleportation tech, since beacons are required to make use of it. Logistic System tech is also still required.
+    - Update the error message when attempting to teleport from a beacon without enough power, and player does not have teleportation equipment.
+    - Update error messages when using the Jump to Nearest Beacon command:
+      - Messages are fully supressed when iterating over them
+      - Specific message if there are no valid beacons.
+        - For the Russian locale, this is a copy of the generic failure message since I can't translate it myself.
+      - Specific message if you're already standing on the only beacon.
+      - Specific message if you are not on a beacon and have no personal teleporters.
+      - Specific message if your personal teleporter isn't charged enough.
+  Optimisations:
+    - Updated various code to streamline and optimize - removed unneeded requires, removed some bits that do nothing, and moved some checks earlier in code to save time.
+  Translation:
+    - Edited the en locale messages for grammer/spelling/clarification/etc.
+    - Teleprovider now uses the currently assigned hotkey, rather than hardcoding the default key.
+      - Russian locale needs verified that this change looks correct.
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+  Info:
+    - Official release for 1.0, added preview image.
+---------------------------------------------------------------------------------------------------
+Version: 0.18.1
+  Bugfixes:
+    - Fixed crash when loading in Factorio 0.18.22
+---------------------------------------------------------------------------------------------------
+Version: 0.18.0
+  Info:
+    - Initial release for 0.18
+---------------------------------------------------------------------------------------------------
+Version: 0.17.1
+  Info:
+    - Fixed error when loading save with telelogistics enabled after setting was disabled.
+---------------------------------------------------------------------------------------------------
+Version: 0.17.0
+  Info:
+    - Initial release
