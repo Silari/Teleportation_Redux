@@ -91,7 +91,7 @@ data:extend({
 		type = "container",
 		name = "teleportation-beacon",
 		icon = "__Teleportation_Redux__/graphics/icon.png",
-    icon_size = 32,
+        icon_size = 32,
 		flags = {"placeable-neutral", "placeable-player", "player-creation"},
 		minable = {hardness = 0.2, mining_time = 0.5, result = "teleportation-beacon"},
 		max_health = 150,
@@ -107,28 +107,19 @@ data:extend({
 				percent = 90
 			}
 		},
-    collision_box = {{-2, -2}, {1.9,1.9}},
-    collision_mask = {"water-tile", "item-layer", "object-layer"},
-    selection_box = {{-2, -2}, {2, 2}},
-    render_layer = decorative,
+        collision_box = {{-2, -2}, {1.9,1.9}},
+        collision_mask = {"water-tile", "item-layer", "object-layer"},
+        selection_box = {{-2, -2}, {2, 2}},
+        render_layer = decorative,
 		inventory_size = 10,
-    picture =
-    {
-      filename = "__Teleportation_Redux__/graphics/tiers/orange/spritesheet.png",
-      priority = "high",
-      width = 128,
-      height = 128,
-      --shift = {0, 0}
-      shift = {0.28, 0.2}
-    }
-    --[[picture =
-    {
-      filename = "__Teleportation_Redux__/graphics/null.png",
-      priority = "high",
-      width = 0,
-      height = 0,
-      shift = {0, 0}
-    }]]
+        picture =
+        {
+          filename = "__Teleportation_Redux__/graphics/tiers/orange/spritesheet.png",
+          priority = "high",
+          width = 128,
+          height = 128,
+          shift = {0.28, 0.2}
+        }
 	},
   {
     type = "electric-energy-interface",

@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.2
+  Info:
+    - Release for 1.1 based on 1.0.2.
+---------------------------------------------------------------------------------------------------
+Version: 1.0.2
+  Bugfixes:
+    - Removed some useless bits of code from places - ex. "per_user" in settings.
+    - Fixed that beacon information window wouldn't update beacon name if a new beacon was selected without the window closing.
+  Changes:
+    - Added additional power usage information to beacon and teleporter equipment descriptions.
+    - Beacon information window now includes the numerical values for current and max charge in addition to the progress bar.
+---------------------------------------------------------------------------------------------------
 Version: 1.0.1
   Bugfixes:
     - Beacon list is resorted after a successful teleportation if it's using 'nearest to player' beacon sorting.

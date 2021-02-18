@@ -317,7 +317,7 @@ function Teleportation_ActivateNearestBeacon(player)
   end
 end
 
---Tries to activate defined beacon
+-- Tries to activate defined beacon
 -- sending_beacon and equipment_energy will be filled in if not provided
 -- ActivateNearestBeacon provides them as an optimization to only ever calculate them once.
 function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_beacon, equipment_energy)
@@ -846,13 +846,18 @@ function Teleportation_ShowBeaconReminder(beacon, player)
   if not beacon then return end
   local window
   local progress
+  local energyamount
   if not player.gui.center["teleportation_beacon_reminder"] then
-    window = player.gui.center.add({type="frame", name="teleportation_beacon_reminder", caption=beacon.name})
+    window = player.gui.center.add({type="frame", name="teleportation_beacon_reminder", caption=beacon.name, direction="vertical"})
+    energyamount = window.add({type="label", name="teleportation_beacon_energy_amount"})
     progress = window.add({type="progressbar", name="teleportation_beacon_energy_progressbar", size=400--[[, style="teleportation_beacon_energy_progressbar"]]})
   else
     window = player.gui.center["teleportation_beacon_reminder"]
+    energyamount = window["teleportation_beacon_energy_amount"]
     progress = window["teleportation_beacon_energy_progressbar"]
   end
+  window.caption = beacon.name
+  energyamount.caption = math.floor(beacon.energy_interface.energy/1000000) .. "MJ / " .. math.floor(beacon.energy_interface.electric_buffer_size/1000000) .. "MJ"
   progress.value = beacon.energy_interface.energy/beacon.energy_interface.electric_buffer_size
 end
 

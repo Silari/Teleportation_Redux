@@ -15,8 +15,7 @@ data:extend({
 		type = "bool-setting",
 		name = "Teleportation-straight-jump-ignores-collisions",
 		setting_type = "runtime-per-user",
-		default_value = false,
-		per_user = true,
+		default_value = false
 	},
 	{
 		type = "int-setting",
@@ -24,10 +23,54 @@ data:extend({
 		setting_type = "runtime-per-user",
 		default_value = 20,
 		minimum_value = 5,
-		maximum_value = 50,
-		per_user = true,
+		maximum_value = 50
 	},
 })
+
+if false then  -- Not currently used, though default values are set to the currently used values
+    data:extend({
+	{   -- How much energy in MJ jumping to a beacon takes
+		type = "int-setting",
+		name = "Teleportation-equip-beacon",
+		setting_type = "startup",
+		default_value = 50,
+		minimum_value = 50,
+		maximum_value = 50
+	},
+	{   -- How much energy in kJ jumping to a location takes per meter
+		type = "int-setting",
+		name = "Teleportation-equip-portal",
+		setting_type = "startup",
+		default_value = 250,
+		minimum_value = 250,
+		maximum_value = 250
+	},
+	{   -- How much energy in MJ a beacon uses to be a sender/receiver
+		type = "int-setting",
+		name = "Teleportation-beacon-usage",
+		setting_type = "startup",
+		default_value = 100,
+		minimum_value = 100,
+		maximum_value = 100
+	},
+	{   -- How much energy in MJ a beacon stores
+		type = "int-setting",
+		name = "Teleportation-beacon-storage",
+		setting_type = "startup",
+		default_value = 300,
+		minimum_value = 300,
+		maximum_value = 3001
+	},
+	{   -- How much energy in MW a beacon stores
+		type = "int-setting",
+		name = "Teleportation-beacon-charge",
+		setting_type = "startup",
+		default_value = 100,
+		minimum_value = 100,
+		maximum_value = 100
+	}
+})
+end
 
 --[[
 Types of settings:

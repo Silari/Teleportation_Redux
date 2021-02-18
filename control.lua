@@ -6,10 +6,17 @@
 
 -- Silari's TODO notes
 -- Teleportation update:
--- Make clicking a beacon open up the teleporter GUI? on_mod_openable and the relevant property on beacon I think, but not really needed.
+-- Make clicking a beacon open up the teleporter GUI? on_mod_openable and the relevant property on beacon I think, but not really needed. Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
+
 -- Message for Ctrl+Y jumping: if the beacon doesn't have enough energy, you just get a Can't Jump message.
---  Note that it checks every beacon by distance until it finds one that works, so you can't just unsupress the 'not enough energy' message in activatebeacon
+-- Note that it checks every beacon by distance until it finds one that works, so you can't just unsupress the 'not enough energy' message in activatebeacon
 --  Though I think I might have pre-checked for every other possible error, so maybe I can make the generic message "Not enough energy on any beacon"
+
+-- Maybe switch things up to use the linked chests/linked belts. 
+
+-- NEXT VERSION
+-- Move some items into settings - disabled for now possibly. Energy usages, max charge and charge rates.
+-- Update the locale to use setting information to show charge amounts/energy usage.
 
 -- Make clicking the portal button not activate the "Can't Reach" message - possibly by calling clean_cursor then putting the item back (next tick?)
 
@@ -79,7 +86,7 @@ script.on_event(defines.events.on_forces_merging, function(event)
 end)
 
 --When player points on the ground while holding anything in his hand
-script.on_event(defines.events.on_put_item, function(event)
+script.on_event(defines.events.on_pre_build, function(event)
   local player = game.players[event.player_index]
   --player.print("Putting item " .. game.tick)
   if Common_IsHolding({name="teleportation-portal", count=1}, player) then
