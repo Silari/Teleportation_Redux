@@ -412,6 +412,21 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
   return false -- If we made it this far, it didn't work, so return false
 end
 
+--Tries to jump into the given area.
+function Teleport_Area(event)
+    if event.item == "teleportation-targeter" then
+        local player = game.players[event.player_index]
+        --Call the function to jump the player to the top left of the selected area.
+        --We're keeping both the old and new targeter right now, so we can't break the old by changing things yet.
+        --TODO: Make this the center and jump if option to ignore collision enabled,
+        --  or find the closest to center non-colliding tile. ActivatePortal has code to find non-colliding.
+        --  Would need that to move HERE so that we can cancel jump if it's outside our area.
+        --  Actually might just need to call Teleportation_CheckDestinationPosition here and give it the bounding box.
+        --  find_non_colliding_position_in_box(name, search_space, precision, force_to_tile_center) is the good call
+        Teleportation_ActivatePortal(player, event.area.left_top)
+    end
+end
+
 --Tries to jump into the position, the jump targeter targets at. (sorry for my Eng)
 function Teleportation_ActivatePortal(player, destination_position)
   local cooldown_in_ticks_between_usages = 15

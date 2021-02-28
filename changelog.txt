@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.3
+  Changes:
+    - The Jump Targeter is now a shortcut on the hotbar as well as a Ctrl+J shortcut. The item version is deprecated but still present for now.
+    - Added new setting - "Dynamic Teleprovider Loop". This controls how fast the mod processes Teleproviders. Under the old method, one teleprovider is processed per tick, leading to fluctuating throughput depending on how many providers exist. New method iterates over each provider once per second, spread throughout the second.
+      - In summary, new method provides consistent throughput for each provider, but may perform noticeably slower if you have hundred/thousands of them.
+    - Hitting the hotkey to open the Teleprovider linking menu will now close the window if no teleprovider is highlighted, or change which teleprovider the window will setup if one is highlighted.
+  Optimisations:
+    - Moved initialization code out of on_tick function and into on_configuration_changed
+---------------------------------------------------------------------------------------------------
 Version: 1.1.2
   Info:
     - Release for 1.1 based on 1.0.2.

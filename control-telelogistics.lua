@@ -14,8 +14,11 @@
 
 script.on_event("teleportation-hotkey-adjust-teleprovider", function(event)
   local player = game.players[event.player_index]
+  -- If player pressed linking hotkey, and has a teleprovider selected, open the link window
   if player.selected and player.selected.name == "teleportation-teleprovider" and player.selected.force.name == player.force.name then
     Telelogistics_OpenLinkerWindow(player, Common_CreateEntityKey(player.selected))
+  else
+    Telelogistics_CloseLinkerWindow(player)
   end
 end)
 
@@ -23,7 +26,7 @@ end)
 --############################ FUNCTIONS ############################--
 --===================================================================--
 
---Ensures that globals were initialized.
+--Ensures that globals were initialized. Called by on_configuration_changed
 function Telelogistics_InitializeGeneralGlobals()
   if not global.Telelogistics then
     global.Telelogistics = {}
@@ -35,7 +38,6 @@ end
 
 --Saves built provider to the global list
 function Telelogistics_RememberProvider(entity)
-  Telelogistics_InitializeGeneralGlobals()
   local provider = {
     entity = entity,
     key = Common_CreateEntityKey(entity)
@@ -76,15 +78,37 @@ end
 
 --Processes providers causing them to send items to the beacons
 function Telelogistics_ProcessProvidersQueue()
-  Telelogistics_InitializeGeneralGlobals()
+  -- If there are no Teleproviders, do nothing
   if #global.Telelogistics.teleproviders == 0 then return end
-  local last_index = global.Telelogistics.index_of_last_processed_provider or 0
-  local current_index = last_index + 1
-  if global.Telelogistics.teleproviders[current_index] then
-    Telelogistics_ProcessProvider(current_index)
-    global.Telelogistics.index_of_last_processed_provider = current_index
+  if settings.global["Teleportation-Dynamic-Loop"].value then
+    --dynamic speed, attempt every provider over a second.
+    local last_index = global.Telelogistics.index_of_last_processed_provider or 0
+    local target_index = last_index + math.ceil(#global.Telelogistics.teleproviders/60)
+    local current_index = last_index + 1
+    while current_index <= target_index do
+        --Attempt to process the Provider at the current_index, if one exists.
+        --Note it's possible for current_index to be greater than the number of providers, if the count changed within
+        --the last second (if some were removed, for example)
+        if global.Telelogistics.teleproviders[current_index] then
+            Telelogistics_ProcessProvider(current_index)
+        end
+        current_index = current_index + 1
+    end
+    --Set our last processed provider to the last target, or 0 
+    if target_index > #global.Telelogistics.teleproviders then
+        target_index = 0
+    end
+    global.Telelogistics.index_of_last_processed_provider = target_index
   else
-    global.Telelogistics.index_of_last_processed_provider = 0
+    -- Static speed, one provider per tick.
+    local last_index = global.Telelogistics.index_of_last_processed_provider or 0
+    local current_index = last_index + 1
+    if global.Telelogistics.teleproviders[current_index] then
+        Telelogistics_ProcessProvider(current_index)
+        global.Telelogistics.index_of_last_processed_provider = current_index
+    else
+        global.Telelogistics.index_of_last_processed_provider = 0
+    end
   end
 end
 
@@ -170,7 +194,8 @@ function Telelogistics_OpenLinkerWindow(player, provider_key)
   if not player.force.name == provider.entity.force.name then return end
   local gui = player.gui.center
   if gui.teleportation_linker_window then
-    return
+    --close the old window and reopen, in case it's a different Teleprovider
+    Telelogistics_CloseLinkerWindow(player)
   end
   local window = gui.add({type="frame", name="teleportation_linker_window", direction="vertical", caption={"caption-linker-window"}})
   local scroll = window.add({type="scroll-pane", name="teleportation_linkable_beacons_scroll", direction="vertical"})

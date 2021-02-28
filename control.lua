@@ -6,19 +6,19 @@
 
 -- Silari's TODO notes
 -- Teleportation update:
--- Make clicking a beacon open up the teleporter GUI? on_mod_openable and the relevant property on beacon I think, but not really needed. Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
+-- Make clicking a beacon open up the teleporter GUI? Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
 
 -- Message for Ctrl+Y jumping: if the beacon doesn't have enough energy, you just get a Can't Jump message.
 -- Note that it checks every beacon by distance until it finds one that works, so you can't just unsupress the 'not enough energy' message in activatebeacon
 --  Though I think I might have pre-checked for every other possible error, so maybe I can make the generic message "Not enough energy on any beacon"
 
--- Maybe switch things up to use the linked chests/linked belts. 
+-- Maybe switch things up to use the linked chests/linked belts. Some downsides: only allows same entity type transfer, always bi-directional, no throughput limit.
 
--- NEXT VERSION
 -- Move some items into settings - disabled for now possibly. Energy usages, max charge and charge rates.
 -- Update the locale to use setting information to show charge amounts/energy usage.
 
--- Make clicking the portal button not activate the "Can't Reach" message - possibly by calling clean_cursor then putting the item back (next tick?)
+
+-- Make clicking the portal button not activate the "Can't Reach" message - possibly by calling clean_cursor then putting the item back (next tick?) - OUTDATED - not an issue with selection-tool targeter
 
 require("util")
 require("config")
@@ -38,7 +38,17 @@ script.on_init(function(event)
 end)
 
 --Migrations
-script.on_configuration_changed(Teleportation_Migrate)
+function on_changed()
+    --Updates the Teleporter GUIs and rebuilds teleporter list.
+    Teleportation_Migrate()
+    --Ensures global needed for Telelogistics are created. This use to be in on_tick.
+    Telelogistics_InitializeGeneralGlobals()
+end
+script.on_configuration_changed(on_changed)
+--Old one, only called ONE function.
+--script.on_configuration_changed(Teleportation_Migrate)
+
+script.on_event(defines.events.on_player_selected_area, Teleport_Area)
 
 --When beacon get placed by entity of any force, all players of this force should get their GUI updated.
 --When teleprovider get placed, it should be remembered.

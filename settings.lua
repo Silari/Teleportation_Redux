@@ -13,6 +13,12 @@ data:extend({
 	},
 	{
 		type = "bool-setting",
+		name = "Teleportation-Dynamic-Loop",
+		setting_type = "runtime-global",
+		default_value = true,
+	},
+	{
+		type = "bool-setting",
 		name = "Teleportation-straight-jump-ignores-collisions",
 		setting_type = "runtime-per-user",
 		default_value = false

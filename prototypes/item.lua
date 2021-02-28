@@ -47,6 +47,39 @@ data:extend({
     stackable = false,
     stack_size = 1
   },
+  {
+    type = "selection-tool",
+    name = "teleportation-targeter",
+    icon = "__Teleportation_Redux__/graphics/portal-32.png",
+    icon_size = 32,
+	subgroup = "other",
+	order = "g-a-a",
+    stack_size = 1,
+    alt_selection_color = {
+        b = 0,
+        g = 1,
+        r = 0
+    },
+    alt_selection_cursor_box_type = "copy",
+    alt_selection_mode = {
+        "blueprint"
+    },
+    flags = {
+        "hidden",
+        "not-stackable",
+        "spawnable",
+        "only-in-cursor"
+    },
+    selection_color = {
+        b = 255,
+        g = 255,
+        r = 255
+    },
+    selection_cursor_box_type = "copy",
+    selection_mode = {
+        "any-tile"
+    }
+  },
 })
 if settings.startup["Teleportation-telelogistics-enabled"].value then
   data:extend({
@@ -62,3 +95,27 @@ if settings.startup["Teleportation-telelogistics-enabled"].value then
     },
   })
 end
+
+--Shortcut to give the player a jump targeter
+targeter_shortcut = {
+      action = "spawn-item",
+      -- no input for now, maybe later associated_control_input = "give-upgrade-planner",
+      icon = {
+        filename = "__Teleportation_Redux__/graphics/portal-32.png",
+        flags = {
+          "gui-icon"
+        },
+        priority = "extra-high-no-scale",
+        scale = 0.5,
+        size = 32
+      },
+      item_to_spawn = "teleportation-targeter",
+      localised_name = {
+        "shortcut.make-teleportation-targeter"
+      },
+      name = "give-teleportation-targeter",
+      order = "o[other]-t[teleportation-targeter]",
+      style = "default",
+      type = "shortcut"
+}
+data:extend({targeter_shortcut})
