@@ -4,6 +4,9 @@
 -- • add Telelogistics feature: player can be supplied with requested items via Teleproviders, if he's equipped with Personal Teleporter equipment and it's charged enough and he's got enough free inventory space
 -- • add ability to copy-paste Teleprovider settings (a linked destination Beacon is being meant)
 
+--Silari's old todo:
+-- Make clicking the portal button not activate the "Can't Reach" message - possibly by calling clean_cursor then putting the item back (next tick?) - OUTDATED - not an issue with selection-tool targeter
+
 -- Silari's TODO notes
 -- Teleportation update:
 -- Make clicking a beacon open up the teleporter GUI? Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
@@ -17,8 +20,10 @@
 -- Move some items into settings - disabled for now possibly. Energy usages, max charge and charge rates.
 -- Update the locale to use setting information to show charge amounts/energy usage.
 
-
--- Make clicking the portal button not activate the "Can't Reach" message - possibly by calling clean_cursor then putting the item back (next tick?) - OUTDATED - not an issue with selection-tool targeter
+--NEXT VERSION
+--Change how the new jump targeting works
+--ONE: Have it use the bounding box created to find a jumpable point. Ensure that even clicking with it allows jumping!
+--TWO: Require that the position being jumped to is charted, possibly a setting to require visibility. Technically you could find nests by attempting to jump into unvisible areas, and I think the 'can't find a spot' message would take precedence over the 'not enough energy' one. No equipment is first though IIRC.
 
 require("util")
 require("config")
@@ -35,6 +40,7 @@ script.on_init(function(event)
     force.reset_technologies()
     force.reset_recipes()
   end
+  Telelogistics_InitializeGeneralGlobals()
 end)
 
 --Migrations

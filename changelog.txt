@@ -1,4 +1,8 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.4
+  Bugfixes:
+    - Fixed Telelogistics error on startup.
+---------------------------------------------------------------------------------------------------
 Version: 1.1.3
   Changes:
     - The Jump Targeter is now a shortcut on the hotbar as well as a Ctrl+J shortcut. The item version is deprecated but still present for now.
