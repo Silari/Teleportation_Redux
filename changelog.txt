@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.5
+  Bugfixes:
+    - Added check for entity validity in Teleportation_CountBeacons function to prevent a crash. Some other functions had validity checks added JIC.
+    - Added script_raise_delete event to the list of subscribed events so the mod can remove beacons that were deleted by a script to prevent the above issue in cases where the event was raised.
+    - Teleportation_Migrate function that is run when configuration changes has been updated to actually run, and to clean up the leftover map marker and hidden accumulator if the beacon is no longer valid. Altogether these three should help keep the list clean and prevent future issues.
+---------------------------------------------------------------------------------------------------
 Version: 1.1.4
   Bugfixes:
     - Fixed Telelogistics error on startup.

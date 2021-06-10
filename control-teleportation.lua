@@ -61,6 +61,8 @@ end
 
 --Adds new beacon to global list and calls GUI update for all members of the force.
 function Teleportation_RememberBeacon(entity)
+  -- Entity isn't valid despite just being built. Shouldn't happen but JIC.
+  if not entity.valid then return end
   Teleportation_InitializeGeneralGlobals()
   entity.operable = false
   entity.active = false
@@ -111,7 +113,8 @@ function Teleportation_CountBeacons(force_name)
     count = #global.Teleportation.beacons
   else
     for i, beacon in pairs(global.Teleportation.beacons) do
-      if beacon.entity.force.name == force_name then
+      -- log(serpent.block(beacon))
+      if beacon.entity.valid and beacon.entity.force.name == force_name then
         count = count + 1
       end
     end
@@ -497,7 +500,7 @@ function Teleportation_DischargeEquipment(player, energy_to_discharge)
   end
 end
 
---Tries to find the nost charged beacon, the player stays on
+--Tries to find the most charged beacon, the player stays on
 function Teleportation_GetSendingBeaconUnderPlayer(player)
   local beacons_under_player = player.surface.find_entities_filtered({name = "teleportation-beacon", position = player.position})
   if beacons_under_player and #beacons_under_player > 0 then
@@ -889,30 +892,41 @@ function Teleportation_Migrate()
   for i, force in pairs(game.forces) do
     Teleportation_UpdateGui(force, true)
   end
-  if game.active_mods["Teleportation_Redux"]:IsGreaterOrEqual("0.15.0") then
+  -- There used to be a version check here. It's gone now.
+  if game.active_mods["Teleportation_Redux"] then
     -- Recollect all beacons
+    log("Recollecting beacons...")
     Teleportation_RefreshBeaconsAndMakeTheirEntitiesUnoperable()
     if global.Teleportation and global.Teleportation.beacons and #global.Teleportation.beacons > 0 then
       for i = #global.Teleportation.beacons, 1, -1 do
         local beacon = global.Teleportation.beacons[i]
         if beacon.entity == nil or not beacon.entity.valid then
-          table.remove(global.Teleportation.beacons, i)
-          next()
-        end
-        if beacon.marker then
-          if beacon.marker.valid then
+          log("Removing invalid beacon: " .. serpent.block(beacon))
+          -- If the beacon isn't valid, we need to remove it from our table and cleanup the marker and accumulator
+          if beacon.marker and beacon.marker.valid then
             beacon.marker.destroy()
           end
-          beacon.marker = nil
+          if beacon.energy_interface and beacon.energy_interface.valid then
+            beacon.energy_interface.destroy()
+          end
+          -- We're working backwards along our list, so this is fine.
+          table.remove(global.Teleportation.beacons, i)
+        else
+            if beacon.marker then
+              if beacon.marker.valid then
+                beacon.marker.destroy()
+              end
+              beacon.marker = nil
+            end
+            local chart_tag = {
+              icon = {type = "item", name = "teleportation-portal"},
+              position = beacon.entity.position,
+              text = beacon.name,
+              last_user = beacon.entity.last_user,
+              target = beacon.entity
+            }
+            beacon.marker = beacon.entity.force.add_chart_tag(beacon.entity.surface, chart_tag)
         end
-        local chart_tag = {
-          icon = {type = "item", name = "teleportation-portal"},
-          position = beacon.entity.position,
-          text = beacon.name,
-          last_user = beacon.entity.last_user,
-          target = beacon.entity
-        }
-        beacon.marker = beacon.entity.force.add_chart_tag(beacon.entity.surface, chart_tag)
       end
     end
   end

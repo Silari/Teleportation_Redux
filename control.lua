@@ -4,10 +4,11 @@
 -- • add Telelogistics feature: player can be supplied with requested items via Teleproviders, if he's equipped with Personal Teleporter equipment and it's charged enough and he's got enough free inventory space
 -- • add ability to copy-paste Teleprovider settings (a linked destination Beacon is being meant)
 
---Silari's old todo:
--- Make clicking the portal button not activate the "Can't Reach" message - possibly by calling clean_cursor then putting the item back (next tick?) - OUTDATED - not an issue with selection-tool targeter
-
 -- Silari's TODO notes
+-- VERY IMPORTANT: Add a system to clean bad beacon info from the list. Should clean up all the settings and the accumulator and marker, and whatever else. Teleportation_ForgetBeacon has code to do that BUT it expects a valid entity, from which it gets the table index - this starts with the table index. Maybe refactor the function to take the table info? UPDATE: Teleportation_Migrate handles cleanup now, so it should be ok as is.
+-- Anything using GetBeaconsSorted is fine - it checks validity
+-- Teleportation_Migrate looks like it deletes the beacon from the table without checking if it needs to remove the marker/accumulator. SHOULD be fixed now.
+
 -- Teleportation update:
 -- Make clicking a beacon open up the teleporter GUI? Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
 
@@ -75,9 +76,10 @@ script.on_event({defines.events.on_built_entity, defines.events.on_robot_built_e
 end)
 
 --When beacon, belonging to some force, get removed, all players of this force should get their GUI updated.
-script.on_event({defines.events.on_pre_player_mined_item, defines.events.on_robot_pre_mined, defines.events.on_entity_died}, function(event)
+script.on_event({defines.events.on_pre_player_mined_item, defines.events.on_robot_pre_mined, defines.events.on_entity_died, defines.events.script_raised_destroy}, function(event)
   local entity = event.entity
-  if event.entity.name == "teleportation-beacon" then
+  if event.entity.name == "teleportation-beacon" and entity.valid then
+    -- If the entity isn't valid we can't remove it, but it'd get removed later by the Migration checks.
     Teleportation_ForgetBeacon(entity)
   elseif event.entity.name == "teleportation-teleprovider" then
     Telelogistics_ForgetProvider(entity)
