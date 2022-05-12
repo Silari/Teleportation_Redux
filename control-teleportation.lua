@@ -609,9 +609,14 @@ function Teleportation_ProcessGuiClick(element)
     global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 4
     Teleportation_UpdateMainWindow(player)
   elseif gui_element.name == "teleportation_button_activate" then         -- T -button (teleport)
-    if Teleportation_ActivateBeacon(player, gui_element.parent.name) and global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
-      --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
-      Teleportation_UpdateMainWindow(player)
+    -- Checks if the player is in a vehicle - if so, fail
+    if player.vehicle and player.vehicle.valid then
+        player.print({"message-sitting-in-vehicle"})
+    else
+      if Teleportation_ActivateBeacon(player, gui_element.parent.name) and global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
+        --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
+        Teleportation_UpdateMainWindow(player)
+      end
     end
   elseif gui_element.name == "teleportation_button_order_up" then         -- < -button (move up)
     if Teleportation_ReorderBeaconUp(gui_element.parent.name, player.force.name) then
@@ -631,7 +636,7 @@ function Teleportation_ProcessGuiClick(element)
   end
 end
 
---Updates GUI for all players of a given LuaForce. If this force owns any beacons - it's members will see them.
+--Updates GUI for all players of a given LuaForce. If this force owns any beacons - its members will see them.
 function Teleportation_UpdateGui(force, force_update)
   Teleportation_InitializeGeneralGlobals()
   local number_of_beacons_belonging_to_force = Teleportation_CountBeacons(force.name)

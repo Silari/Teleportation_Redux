@@ -9,6 +9,8 @@
 -- Anything using GetBeaconsSorted is fine - it checks validity
 -- Teleportation_Migrate looks like it deletes the beacon from the table without checking if it needs to remove the marker/accumulator. SHOULD be fixed now.
 
+-- The above stuff: I need to ALSO do it for the telelogistics! Less of a big deal since there's no hidden accumulator or map marker. Just whomp it from the table. And I can do it as part of the telelogistics updating.
+
 -- Teleportation update:
 -- Make clicking a beacon open up the teleporter GUI? Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
 
@@ -104,6 +106,7 @@ script.on_event(defines.events.on_forces_merging, function(event)
 end)
 
 --When player points on the ground while holding anything in his hand
+--DEPRECATED, should be using the shortcut based remote
 script.on_event(defines.events.on_pre_build, function(event)
   local player = game.players[event.player_index]
   --player.print("Putting item " .. game.tick)

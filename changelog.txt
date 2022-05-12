@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.6
+  Bugfixes:
+    - Fixed wrong error given when wearing armor with an equipment grid and attempting to teleport using the beacon list while inside a vehicle while not near a beacon. Presence of a vehicle is now checked first and overrides other possible errors.
+    - Recipe for jump targeter wasn't removed from Advanced Teleportation as it should have been since 1.1.3. The item will continue to exist for legacy reasons but the shortcut version should be used instead.
+---------------------------------------------------------------------------------------------------
 Version: 1.1.5
   Bugfixes:
     - Added check for entity validity in Teleportation_CountBeacons function to prevent a crash. Some other functions had validity checks added JIC.

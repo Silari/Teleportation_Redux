@@ -30,10 +30,6 @@ data:extend({
 			{
 				type = "unlock-recipe",
 				recipe = "teleportation-equipment"
-			},
-			{
-				type = "unlock-recipe",
-				recipe = "teleportation-portal",
 			}
 		},
 		prerequisites = {"teleportation-tech", "fusion-reactor-equipment"},
