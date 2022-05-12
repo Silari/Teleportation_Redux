@@ -5,11 +5,6 @@
 -- • add ability to copy-paste Teleprovider settings (a linked destination Beacon is being meant)
 
 -- Silari's TODO notes
--- VERY IMPORTANT: Add a system to clean bad beacon info from the list. Should clean up all the settings and the accumulator and marker, and whatever else. Teleportation_ForgetBeacon has code to do that BUT it expects a valid entity, from which it gets the table index - this starts with the table index. Maybe refactor the function to take the table info? UPDATE: Teleportation_Migrate handles cleanup now, so it should be ok as is.
--- Anything using GetBeaconsSorted is fine - it checks validity
--- Teleportation_Migrate looks like it deletes the beacon from the table without checking if it needs to remove the marker/accumulator. SHOULD be fixed now.
-
--- The above stuff: I need to ALSO do it for the telelogistics! Less of a big deal since there's no hidden accumulator or map marker. Just whomp it from the table. And I can do it as part of the telelogistics updating.
 
 -- Teleportation update:
 -- Make clicking a beacon open up the teleporter GUI? Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
@@ -54,8 +49,6 @@ function on_changed()
     Telelogistics_InitializeGeneralGlobals()
 end
 script.on_configuration_changed(on_changed)
---Old one, only called ONE function.
---script.on_configuration_changed(Teleportation_Migrate)
 
 script.on_event(defines.events.on_player_selected_area, Teleport_Area)
 

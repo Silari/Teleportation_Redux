@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.7
+  Changes:
+    - It is now possible to teleport while in a vehicle. The vehicle must have at least one teleport equipment installed, and thus must have an equipment grid.
+      - Vehicles require more power than teleporting a player. At present this is a 10% increase for each weapon slot, and a 1% increase for each inventory and equipment grid slot. A vanilla spidertron takes 240% the power to teleport as a player, which is almost all of a beacons energy. Modded vehicles may require more energy than a beacon can provide.
+      - Energy needed for teleportation will come from the vehicle equipment first. If that is insufficient it will pull the rest from the player's teleport equipment.
+  Bugfixes:
+    - Fixed some additional improper error messages. The game should account properly for any of the following conditions: in/out of vehicle, no armor, armor with no grid, armor with grid but no teleportation equipment, armor with grid and teleportation equipment but insufficient charge, in a vehicle with no grid, in a vehicle with a grid but equipment, in a vehicle with a grid and equipment but insufficient charge, and in a vehicle with a grid and equipment but insufficient charge while wearing armor with teleport equipment that can't provide the remaining needed charge.
+---------------------------------------------------------------------------------------------------
 Version: 1.1.6
   Bugfixes:
     - Fixed wrong error given when wearing armor with an equipment grid and attempting to teleport using the beacon list while inside a vehicle while not near a beacon. Presence of a vehicle is now checked first and overrides other possible errors.

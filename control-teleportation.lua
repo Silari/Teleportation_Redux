@@ -59,6 +59,433 @@ function Teleportation_InitializePlayerGlobals(player)
   end
 end
 
+--Tries to activate nearest beacon (on ctrl+y)
+function Teleportation_ActivateNearestBeacon(player)
+  if Common_IsPlayerOk(player) then
+    local list = global.Teleportation.beacons
+    Teleportation_InitializePlayerGlobals(player)
+    local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, 3 --[[sort by distance from player]], player)
+    if #list_sorted == 0 then
+      -- No beacons, can't jump.
+      player.print({"message-no-valid-beacon"})
+      return false
+    end
+    -- As an optimization and a pre-check for valid teleport, find sending beacon and equipment here.
+    local sending_beacon = Teleportation_GetSendingBeaconUnderPlayer(player, required_energy_beacon)
+    -- Standing on the only beacon - destination would be same as start - fail
+    if sending_beacon and #list_sorted == 1 then
+      player.print({"message-sender-and-destination-are-same"})
+      return false
+    end
+    -- Get the teleporter energy in the player's equipment and the player's vehicle's equipment.
+    local equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
+    local vehicle_energy = Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
+    if player.vehicle and player.vehicle.valid and vehicle_energy == -1 then
+        --Player is in a valid vehicle but it doesn't have equipment - fail.
+        player.print({"message-sitting-in-vehicle"})
+        return false
+    end
+    local required_energy_eq = Teleportation.config.energy_in_equipment_to_use_beacon
+    -- Not standing on a beacon and no player or vehicle equipment - fail
+    if (not sending_beacon) and ((equipment_energy == -1) and (vehicle_energy == -1)) then
+      player.print({"message-no-sending-beacons-or-equipment"})
+      return false
+    end
+    -- Calculate the modifier to energy costs due to being in a vehicle
+    local vehicle_mod = 1 -- Default is no modifier
+    if vehicle_energy >= 0 then vehicle_mod = Teleportation_VehicleModifier(player.vehicle) end
+    -- Not standing on a beacon and equipment isn't charged enough - fail
+    if (not sending_beacon) and ((equipment_energy + vehicle_energy) < (required_energy_eq * vehicle_mod)) then
+      failure_message = {"message-no-power-pt", math.floor(math.max(equipment_energy + vehicle_energy,0) * 100 / (required_energy_eq * vehicle_mod))}
+      player.print(failure_message)
+      return false
+    end
+    for i, beacon in pairs(list_sorted) do
+      -- We provide the sending_beacon and equipment_energy to ActivateBeacon so it won't need to do so every time.
+      if Teleportation_ActivateBeacon(player, beacon.key, true, sending_beacon, equipment_energy, vehicle_energy, vehicle_mod) then
+        if global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
+          --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
+          Teleportation_UpdateMainWindow(player)
+        end
+        return true
+      end
+    end
+    player.print({"message-jump-to-closest-beacon-failure"})
+    return false
+  end
+end
+
+-- Tries to activate defined beacon
+-- sending_beacon and equipment_energy will be filled in if not provided
+-- ActivateNearestBeacon provides them as an optimization to only ever calculate them once.
+function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_beacon, equipment_energy, vehicle_energy, vehicle_mod)
+  local required_energy_eq = Teleportation.config.energy_in_equipment_to_use_beacon
+  local required_energy_beacon = Teleportation.config.energy_in_beacon_to_activate
+  local beacon = Common_GetBeaconByKey(beacon_key)
+  if sending_beacon == nil then
+    sending_beacon = Teleportation_GetSendingBeaconUnderPlayer(player, required_energy_beacon)
+  end
+  local failure_message
+  local playervehicle = player.vehicle
+  -- Checks if the player is in a vehicle.
+  if playervehicle and playervehicle.valid then
+      -- The vehicle MUST have teleport equipment installed to teleport. Player equipment alone isn't enough.
+      if vehicle_energy == nil then
+        vehicle_energy = Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
+      end
+      if vehicle_energy == -1 then
+          failure_message = {"message-sitting-in-vehicle"}
+          if not silent_mode then
+              player.print(failure_message)
+          end
+          return false
+      else
+          if vehicle_mod == nil then
+            vehicle_mod = Teleportation_VehicleModifier(playervehicle)
+          end
+          required_energy_eq = required_energy_eq * vehicle_mod
+          required_energy_beacon = required_energy_beacon * vehicle_mod
+      end
+  else
+    playervehicle = nil -- If it exists but isn't valid just remove it
+    vehicle_energy = -1 -- Obviously if we don't have a vehicle it has no energy
+  end
+  -- If the player is standing on a beacon, try to use it to send the player. No equipment needed/charge used.
+  if sending_beacon then
+    -- Checks if player is attempting to send to the beacon they are on.
+    if sending_beacon.key == beacon_key then
+      failure_message = {"message-sender-and-destination-are-same"}
+      if not silent_mode then
+        player.print(failure_message)
+      end
+      return false
+    end
+    if sending_beacon.energy_interface.energy >= required_energy_beacon then
+      local receiving_beacon = beacon
+      if receiving_beacon.energy_interface.energy >= required_energy_beacon then
+        Teleportation_BlockProjectiles(player)
+        Teleportation_Teleport(player, receiving_beacon.entity.surface.name, receiving_beacon.entity.position)
+        sending_beacon.energy_interface.energy = sending_beacon.energy_interface.energy - required_energy_beacon
+        receiving_beacon.energy_interface.energy = receiving_beacon.energy_interface.energy - required_energy_beacon
+        return true
+      else --receiving_beacon.energy_interface.energy < required_energy_beacon
+        failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        if not silent_mode then
+          player.print(failure_message)
+        end
+        return false
+      end
+    end
+  end
+  -- If there was no sending beacon OR the sending beacon doesn't have enough power, try to use the equipment version.
+  if equipment_energy == nil then
+    equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
+  end
+  -- We need at least a little charge in the vehicle/personal equipment, otherwise assume there isn't any equipment.
+  if (equipment_energy + vehicle_energy) >= -1 then
+    -- Must be enough energy in personal + vehicle equipment for teleport, or else not enough power message.
+    if (equipment_energy + vehicle_energy) >= required_energy_eq then
+      local receiving_beacon = beacon
+      local remainenergy = required_energy_eq
+      if receiving_beacon.energy_interface.energy >= required_energy_beacon then
+        Teleportation_BlockProjectiles(player)
+        Teleportation_Teleport(player, receiving_beacon.entity.surface.name, receiving_beacon.entity.position)
+        if vehicle_energy >= 0 then
+            remainenergy = Teleportation_DischargeVehicleEquipment(playervehicle, remainenergy)
+        end
+        if remainenergy then
+            remainenergy = Teleportation_DischargePlayerEquipment(player, remainenergy)
+        end
+        -- We shouldn't have any because it should've been taken by the discharge calls. If there is, log it, it's an error.
+        if remainenergy > 0 then
+            log("Error in teleportation redux: energy remaining after teleport! T_AB: " .. remainenergy)
+        end
+        receiving_beacon.energy_interface.energy = receiving_beacon.energy_interface.energy - required_energy_beacon
+        return true
+      else --receiving_beacon.energy_interface.energy < required_energy_beacon
+        failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        if not silent_mode then
+          player.print(failure_message)
+        end
+        return false
+      end
+    else --equipment_energy < required_energy_eq
+      if not silent_mode then
+        failure_message = {"message-no-power-pt", math.floor(math.max(equipment_energy + vehicle_energy,0) * 100 / required_energy_eq)}
+        player.print(failure_message)
+      end
+      return false
+    end
+  else -- no equipment and no charged sending beacon
+    -- There was a beacon under the player, but it had no charge. That message takes priority over the no-sending-beacon message.
+    if sending_beacon then
+      failure_message = {"message-sending-beacon-no-energy", math.floor(sending_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+    else -- There wasn't a beacon under the player.
+      failure_message = {"message-no-sending-beacons-or-equipment"}
+    end
+    if not silent_mode then
+      player.print(failure_message)
+    end
+    return false
+  end
+  return false -- If we made it this far, it didn't work, so return false
+end
+
+--Tries to jump into the given area.
+function Teleport_Area(event)
+    if event.item == "teleportation-targeter" then
+        local player = game.players[event.player_index]
+        --Call the function to jump the player to the top left of the selected area.
+        --We're keeping both the old and new targeter right now, so we can't break the old by changing things yet.
+        --TODO: Make this the center and jump if option to ignore collision enabled,
+        --  or find the closest to center non-colliding tile. ActivatePortal has code to find non-colliding.
+        --  Would need that to move HERE so that we can cancel jump if it's outside our area.
+        --  Actually might just need to call Teleportation_CheckDestinationPosition here and give it the bounding box.
+        --  find_non_colliding_position_in_box(name, search_space, precision, force_to_tile_center) is the good call
+        Teleportation_ActivatePortal(player, event.area.left_top)
+    end
+end
+
+-- Attempts to teleport to one of the tiles selected by the jump targeter (or the position of the old targeter)
+function Teleportation_ActivatePortal(player, destination_position)
+  local cooldown_in_ticks_between_usages = 15
+  Teleportation_InitializePlayerGlobals(player)
+  local playervehicle = player.vehicle
+  local vehicle_energy = 0
+  local vehicle_mod = 1 -- No modifier to teleport cost
+  -- Checks if the player is in a vehicle, and if that vehicle has teleportation equipment.
+  if playervehicle and playervehicle.valid then
+      -- The vehicle MUST have teleport equipment installed to teleport. Player equipment alone isn't enough.
+      vehicle_energy = Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
+      if vehicle_energy == -1 then
+          player.print({"message-sitting-in-vehicle"})
+          return false
+      else
+          vehicle_mod = Teleportation_VehicleModifier(playervehicle)
+      end
+  else
+    playervehicle = nil -- If it exists but isn't valid just remove it
+    vehicle_energy = -1 -- No vehicle so obviously no vehicle equipment
+  end
+  if not global.Teleportation.player_settings[player.name].used_portal_on_tick then
+    global.Teleportation.player_settings[player.name].used_portal_on_tick = 0
+  end
+  -- Checks if there has been enough time since the last portal usage
+  local ticks_passed_since_last_use = game.tick - global.Teleportation.player_settings[player.name].used_portal_on_tick
+  if ticks_passed_since_last_use < cooldown_in_ticks_between_usages then
+    if ticks_passed_since_last_use > 15 then
+      player.print({"message-too-frequent-use-portal", cooldown_in_ticks_between_usages / 60})
+    end
+    return false
+  else
+    local distance = Common_GetDistanceBetween(player.position, destination_position)
+    local energy_required = Teleportation.config.energy_in_equipment_to_use_portal * distance * vehicle_mod
+    local equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
+    --player.print("Dist: " .. distance .. " Energyreq normal: " .. Teleportation.config.energy_in_equipment_to_use_portal * distance .. " Energyreq mod: " .. energy_required .. " equipen: " .. equipment_energy .. " vehen: " .. vehicle_energy)
+    -- If equipment+vehicle energy isn't at least -1, then the player and their vehicle don't have one installed at all.
+    -- Note that -1 is a control value meaning 'no equipment'. If equipment is installed but not charged it would be 0.
+    if (equipment_energy + vehicle_energy) >= -1 then
+      -- Total available charge in personal and vehicle equipment needs to be more than the required amount
+      if (equipment_energy + vehicle_energy) >= energy_required then
+        local valid_position = Teleportation_CheckDestinationPosition(destination_position, player)
+        if valid_position then
+          Teleportation_BlockProjectiles(player)
+          Teleportation_Teleport(player, player.surface, valid_position)
+          global.Teleportation.player_settings[player.name].used_portal_on_tick = game.tick
+          energy_required = Teleportation_DischargeVehicleEquipment(playervehicle, energy_required)
+          energy_required = Teleportation_DischargePlayerEquipment(player, energy_required)
+          if energy_required > 0 then
+              log("Error in teleportation redux: energy remaining after teleport! T_AP: " .. energy_required)
+          end
+          return true
+        else
+          return false
+        end
+      else --equipment_energy < energy_required
+        local failure_message = {"message-no-power-pt", math.floor(math.max(equipment_energy + vehicle_energy,0) * 100 / energy_required)}
+        player.print(failure_message)
+        return false
+      end
+    else -- No equipment, inform the player.
+      local failure_message = {"message-no-equipment"}
+      player.print(failure_message)
+      return false
+    end
+  end
+  return false -- If we made it this far, it didn't work, so return false
+end
+
+function Teleportation_VehicleModifier(vehicle)
+    -- If in a vehicle, energy costs are higher. 10% for each gun and 1% for each inventory and equipment grid slot.
+    -- If the vehicle doesn't have that type of inventory it uses length of empty table - 0
+    -- Note that car_trunk and spider_trunk are currently the same number, but may not be in a future version.
+    local vehicle_mod = 1
+    local invgridmod = (#(vehicle.get_inventory(defines.inventory.car_trunk) or vehicle.get_inventory(defines.inventory.spider_trunk) or {})) * 0.01
+    --player.print("Invgrid1: " .. invgridmod)
+    local invgridmod = invgridmod + vehicle.grid.width * vehicle.grid.height * 0.01
+    --player.print("Invgrid3: " .. invgridmod)
+    -- Note this uses an empty table if the vehicle has nil guns
+    vehicle_mod = vehicle_mod + dictlength(vehicle.prototype.guns) * 0.1
+    --player.print("Invgridmod: " .. invgridmod .. " : vehicle mod: " .. vehicle_mod)
+    vehicle_mod = vehicle_mod + invgridmod
+    --game.print("Final vehicle mod: " .. vehicle_mod)
+    return vehicle_mod
+end
+
+-- Iterates over all equipment in the grid and attempts to remove energy from it, until all needed energy is consumed or everything is empty.
+-- TODO - Make this try and split energy evenly among all equipment, so they can all split recharging. Not a big deal in vanilla where you're unlikely to hit the max 10MW but modded might. Oh and batteries don't have a limit for output.
+function Teleportation_DischargeEquipment(agrid, energy_to_discharge)
+    if agrid.valid then
+        for i, item in pairs(agrid.equipment) do
+            if item.name == "teleportation-equipment" then
+              if item.energy >= energy_to_discharge then
+                item.energy = item.energy - energy_to_discharge
+                return 0
+              else
+                energy_to_discharge = energy_to_discharge - item.energy
+                item.energy = 0
+              end
+            end
+        end
+    end
+    return energy_to_discharge
+end
+
+-- Validates player and equipment grid then calls DischargeEquipment
+function Teleportation_DischargePlayerEquipment(player, energy_to_discharge)
+  if player ~= nil and player.valid and player.connected then
+    local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
+    if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
+      return Teleportation_DischargeEquipment(armor_as_item_stack.grid, energy_to_discharge)
+    end
+  end
+  return energy_to_discharge
+end
+
+-- Validates vehicle and vehicle grid then calls DischargeEquipment
+function Teleportation_DischargeVehicleEquipment(vehicle, energy_to_discharge)
+    if vehicle.valid and vehicle.grid and vehicle.grid.valid then
+      return Teleportation_DischargeEquipment(vehicle.grid, energy_to_discharge)
+    end
+    return energy_to_discharge
+end
+
+--Tries to find the most charged beacon, the player stays on
+function Teleportation_GetSendingBeaconUnderPlayer(player)
+  local beacons_under_player = player.surface.find_entities_filtered({name = "teleportation-beacon", position = player.position})
+  if beacons_under_player and #beacons_under_player > 0 then
+    local most_charged_beacon
+    for i, beacon_entity in pairs(beacons_under_player) do
+      local beacon = Common_GetBeaconByKey(Common_CreateEntityKey(beacon_entity))
+      if beacon then
+        if not most_charged_beacon then
+          most_charged_beacon = beacon
+        end
+        if most_charged_beacon.energy_interface.energy < beacon.energy_interface.energy then
+          most_charged_beacon = beacon
+        end
+      end
+    end
+    return most_charged_beacon
+  else
+    return false
+  end
+end
+
+-- Gets the total charge of all teleport equipment
+function Teleportation_GetPlayerEquipmentChargeLevel(player)
+  local charge_level = 0
+  if player ~= nil and player.valid and player.connected then
+    local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
+    if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
+      local equipment = armor_as_item_stack.grid.equipment
+      local has_equipment = false
+      for i, item in pairs(equipment) do
+        if item.name == "teleportation-equipment" then
+          has_equipment = true
+          charge_level = charge_level + item.energy
+        end
+      end
+      if not has_equipment then return -1 end
+    else -- no armor or no grid, so no equipment
+        return -1
+    end
+  else -- No valid connected player - shouldn't happen unless error in code but JIC no equip
+    return -1
+  end
+  return charge_level
+end
+
+-- Gets the total charge of all teleport equipment in players vehicle
+function Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
+  local charge_level = 0
+  -- Check if the given player is valid and is in a valid vehicle
+  if player ~= nil and player.valid and player.connected and player.vehicle and player.vehicle.valid then
+    --player.print("Found player vehicle")
+    local vehicle_grid = player.vehicle.grid
+    if vehicle_grid and vehicle_grid.valid then -- Vehicle has a grid that is also valid
+      --player.print("Vehicle has grid")
+      local equipment = vehicle_grid.equipment
+      local has_equipment = false
+      for i, item in pairs(equipment) do
+        if item.name == "teleportation-equipment" then
+          has_equipment = true
+          charge_level = charge_level + item.energy
+        end
+      end
+      if not has_equipment then
+        --player.print("No vehicle equipment in grid.")
+        return -1
+      end
+    else
+      --player.print("No vehicle grid")
+      return -1
+    end
+  else -- Something wasn't valid above so clearly we don't have vehicle equipment
+    return -1
+  end
+  --player.print("Current charge: " .. charge_level)
+  return charge_level
+end
+
+--Returns non-colliding position (neighboring to the position targeted with jump targeter) where player can teleport to
+function Teleportation_CheckDestinationPosition(position, player)
+  if player.surface.can_place_entity({name = player.character.name, position = position}) or settings.get_player_settings(player)["Teleportation-straight-jump-ignores-collisions"].value then
+    return position
+  else
+    local newposition = player.surface.find_non_colliding_position(player.character.name, position, 2, 1)
+    if newposition then
+      return newposition
+    end
+  end
+  player.print({"message-invalid-destination"})
+  return false
+end
+
+--Teleports player to the defined position on the defined surface
+function Teleportation_Teleport(player, surface_name, destination_position)
+  surface_name = surface_name or "nauvis"
+  -- If the player is in a vehicle, teleport that, otherwise teleport the player.
+  if player.vehicle and player.vehicle.valid then
+    player.vehicle.teleport({destination_position.x, destination_position.y+0.1}, surface_name)
+  else
+    player.teleport({destination_position.x, destination_position.y+0.1}, surface_name)
+  end
+end
+
+--Destroys enemies' projectiles neighboring to the player to prevent them from homing behavior after player's teleportation.
+function Teleportation_BlockProjectiles(player)
+  local radius = 30
+  local area = {{x = player.position.x - radius, y = player.position.y - radius}, {x = player.position.x + radius, y = player.position.y + radius}}
+  for i, entity in pairs(player.surface.find_entities_filtered{area = area, name="acid-projectile-purple"}) do
+    entity.destroy()
+  end
+end
+
+--===================================================================--
+--############################### GUI ###############################--
+--===================================================================--
+
 --Adds new beacon to global list and calls GUI update for all members of the force.
 function Teleportation_RememberBeacon(entity)
   -- Entity isn't valid despite just being built. Shouldn't happen but JIC.
@@ -274,350 +701,44 @@ function Teleportation_GetListPage(player, list, page, page_size)
   return list_page, current_page_num, total_pages_num
 end
 
---Tries to activate nearest beacon (on ctrl+y)
-function Teleportation_ActivateNearestBeacon(player)
-  if Common_IsPlayerOk(player) then
-    local list = global.Teleportation.beacons
-    Teleportation_InitializePlayerGlobals(player)
-    local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, 3 --[[sort by distance from player]], player)
-    if #list_sorted == 0 then
-      -- No beacons, can't jump.
-      player.print({"message-no-valid-beacon"})
-      return false
-    end
-    -- As an optimization and a pre-check for valid teleport, find sending beacon and equipment here.
-    local sending_beacon = Teleportation_GetSendingBeaconUnderPlayer(player, required_energy_beacon)
-    -- Standing on the only beacon - destination would be same as start - fail
-    if sending_beacon and #list_sorted == 1 then
-      player.print({"message-sender-and-destination-are-same"})
-      return false
-    end
-    local equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
-    local required_energy_eq = Teleportation.config.energy_in_equipment_to_use_beacon
-    -- Not standing on a beacon and no equipment - fail
-    if (not sending_beacon) and (equipment_energy == -1) then
-      player.print({"message-no-sending-beacons-or-equipment"})
-      return false
-    end
-    -- Not standing on a beacon and equipment isn't charged enough - fail
-    if (not sending_beacon) and (equipment_energy < required_energy_eq) then
-      failure_message = {"message-no-power-pt", math.floor(equipment_energy * 100 / required_energy_eq)}
-      player.print(failure_message)
-      return false
-    end
-    for i, beacon in pairs(list_sorted) do
-      -- We provide the sending_beacon and equipment_energy to ActivateBeacon so it won't need to do so every time.
-      if Teleportation_ActivateBeacon(player, beacon.key, true, sending_beacon, equipment_energy) then
-        if global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
-          --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
-          Teleportation_UpdateMainWindow(player)
-        end
-        return true
-      end
-    end
-    player.print({"message-jump-to-closest-beacon-failure"})
-    return false
-  end
-end
-
--- Tries to activate defined beacon
--- sending_beacon and equipment_energy will be filled in if not provided
--- ActivateNearestBeacon provides them as an optimization to only ever calculate them once.
-function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_beacon, equipment_energy)
-  local required_energy_eq = Teleportation.config.energy_in_equipment_to_use_beacon
-  local required_energy_beacon = Teleportation.config.energy_in_beacon_to_activate
-  local beacon = Common_GetBeaconByKey(beacon_key)
-  if sending_beacon == nil then
-    sending_beacon = Teleportation_GetSendingBeaconUnderPlayer(player, required_energy_beacon)
-  end
-  local failure_message
-  -- If the player is standing on a beacon, try to use it to send the player.
-  if sending_beacon then
-    -- Checks if player is attempting to send to the beacon they are on.
-    if sending_beacon.key == beacon_key then
-      failure_message = {"message-sender-and-destination-are-same"}
-      if not silent_mode then
-        player.print(failure_message)
-      end
-      return false
-    end
-    -- Checks if the player is in a vehicle - if so, failure message.
-    if player.vehicle and player.vehicle.valid then
-      failure_message = {"message-sitting-in-vehicle"}
-      if not silent_mode then
-        player.print(failure_message)
-      end
-      return false
-    end
-    if sending_beacon.energy_interface.energy >= required_energy_beacon then
-      local receiving_beacon = beacon
-      if receiving_beacon.energy_interface.energy >= required_energy_beacon then
-        Teleportation_BlockProjectiles(player)
-        Teleportation_Teleport(player, receiving_beacon.entity.surface.name, receiving_beacon.entity.position)
-        sending_beacon.energy_interface.energy = sending_beacon.energy_interface.energy - required_energy_beacon
-        receiving_beacon.energy_interface.energy = receiving_beacon.energy_interface.energy - required_energy_beacon
-        return true
-      else --receiving_beacon.energy_interface.energy < required_energy_beacon
-        failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
-        if not silent_mode then
-          player.print(failure_message)
-        end
-        return false
-      end
-    end
-  end
-  -- If there was no sending beacon OR the sending beacon doesn't have enough power, try to use the equipment version.
-  if equipment_energy == nil then
-    equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
-  end
-  if equipment_energy and equipment_energy >= 0 then
-    if player.vehicle and player.vehicle.valid then
-      failure_message = {"message-sitting-in-vehicle"}
-      if not silent_mode then
-        player.print(failure_message)
-      end
-      return false
-    end
-    if equipment_energy >= required_energy_eq then
-      local receiving_beacon = beacon
-      if receiving_beacon.energy_interface.energy >= required_energy_beacon then
-        Teleportation_BlockProjectiles(player)
-        Teleportation_Teleport(player, receiving_beacon.entity.surface.name, receiving_beacon.entity.position)
-        Teleportation_DischargeEquipment(player, required_energy_eq)
-        receiving_beacon.energy_interface.energy = receiving_beacon.energy_interface.energy - required_energy_beacon
-        return true
-      else --receiving_beacon.energy_interface.energy < required_energy_beacon
-        failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
-        if not silent_mode then
-          player.print(failure_message)
-        end
-        return false
-      end
-    else --equipment_energy < required_energy_eq
-      if not silent_mode then
-        failure_message = {"message-no-power-pt", math.floor(equipment_energy * 100 / required_energy_eq)}
-        player.print(failure_message)
-      end
-      return false
-    end
-  else -- no equipment and no charged sending beacon
-    -- There was a beacon under the player, but it had no charge. That message takes priority over the no-sending-beacon message.
-    if sending_beacon then
-      failure_message = {"message-sending-beacon-no-energy", math.floor(sending_beacon.energy_interface.energy * 100 / required_energy_beacon)}
-    else -- There wasn't a beacon under the player.
-      failure_message = {"message-no-sending-beacons-or-equipment"}
-    end
-    if not silent_mode then
-      player.print(failure_message)
-    end
-    return false
-  end
-  return false -- If we made it this far, it didn't work, so return false
-end
-
---Tries to jump into the given area.
-function Teleport_Area(event)
-    if event.item == "teleportation-targeter" then
-        local player = game.players[event.player_index]
-        --Call the function to jump the player to the top left of the selected area.
-        --We're keeping both the old and new targeter right now, so we can't break the old by changing things yet.
-        --TODO: Make this the center and jump if option to ignore collision enabled,
-        --  or find the closest to center non-colliding tile. ActivatePortal has code to find non-colliding.
-        --  Would need that to move HERE so that we can cancel jump if it's outside our area.
-        --  Actually might just need to call Teleportation_CheckDestinationPosition here and give it the bounding box.
-        --  find_non_colliding_position_in_box(name, search_space, precision, force_to_tile_center) is the good call
-        Teleportation_ActivatePortal(player, event.area.left_top)
-    end
-end
-
---Tries to jump into the position, the jump targeter targets at. (sorry for my Eng)
-function Teleportation_ActivatePortal(player, destination_position)
-  local cooldown_in_ticks_between_usages = 15
-  Teleportation_InitializePlayerGlobals(player)
-  if player.vehicle and player.vehicle.valid then
-    failure_message = {"message-sitting-in-vehicle"}
-    player.print(failure_message)
-    return false
-  end
-  if not global.Teleportation.player_settings[player.name].used_portal_on_tick then
-    global.Teleportation.player_settings[player.name].used_portal_on_tick = 0
-  end
-  local ticks_passed_since_last_use = game.tick - global.Teleportation.player_settings[player.name].used_portal_on_tick
-  if ticks_passed_since_last_use < cooldown_in_ticks_between_usages then
-    if ticks_passed_since_last_use > 15 then
-      player.print({"message-too-frequent-use-portal", cooldown_in_ticks_between_usages / 60})
-    end
-    return false
-  else
-    local distance = Common_GetDistanceBetween(player.position, destination_position)
-    local energy_required = Teleportation.config.energy_in_equipment_to_use_portal * distance
-    local equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
-    -- If equipment energy isn't at least 0, then the player doesn't have one installed at all.
-    if equipment_energy >= 0 then
-      if equipment_energy >= energy_required then
-        local valid_position = Teleportation_CheckDestinationPosition(destination_position, player)
-        if valid_position then
-          Teleportation_BlockProjectiles(player)
-          player.teleport(valid_position, player.surface)
-          global.Teleportation.player_settings[player.name].used_portal_on_tick = game.tick
-          Teleportation_DischargeEquipment(player, energy_required)
-          return true
-        else
-          return false
-        end
-      else --equipment_energy < energy_required
-        local failure_message = {"message-no-power-pt", math.floor(equipment_energy * 100 / energy_required)}
-        player.print(failure_message)
-        return false
-      end
-    else
-      local failure_message = {"message-no-equipment"}
-      player.print(failure_message)
-      return false
-    end
-  end
-  return false -- If we made it this far, it didn't work, so return false
-end
-
--- Iterates over all equipment in the player's grid and attempts to remove energy from it, until all needed energy is consumed.
-function Teleportation_DischargeEquipment(player, energy_to_discharge)
-  if player ~= nil and player.valid and player.connected then
-    local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
-    if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
-      local equipment = armor_as_item_stack.grid.equipment
-      for i, item in pairs(equipment) do
-        if item.name == "teleportation-equipment" then
-          if item.energy >= energy_to_discharge then
-            item.energy = item.energy - energy_to_discharge
-            return
-          else
-            energy_to_discharge = energy_to_discharge - item.energy
-            item.energy = 0
-          end
-        end
-      end
-    end
-  end
-end
-
---Tries to find the most charged beacon, the player stays on
-function Teleportation_GetSendingBeaconUnderPlayer(player)
-  local beacons_under_player = player.surface.find_entities_filtered({name = "teleportation-beacon", position = player.position})
-  if beacons_under_player and #beacons_under_player > 0 then
-    local most_charged_beacon
-    for i, beacon_entity in pairs(beacons_under_player) do
-      local beacon = Common_GetBeaconByKey(Common_CreateEntityKey(beacon_entity))
-      if beacon then
-        if not most_charged_beacon then
-          most_charged_beacon = beacon
-        end
-        if most_charged_beacon.energy_interface.energy < beacon.energy_interface.energy then
-          most_charged_beacon = beacon
-        end
-      end
-    end
-    return most_charged_beacon
-  else
-    return false
-  end
-end
-
---Gets the most charged equipment to teleport
-function Teleportation_GetPlayerEquipmentChargeLevel(player)
-  local charge_level = 0
-  if player ~= nil and player.valid and player.connected then
-    local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
-    if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
-      local equipment = armor_as_item_stack.grid.equipment
-      local has_equipment = false
-      for i, item in pairs(equipment) do
-        if item.name == "teleportation-equipment" then
-          has_equipment = true
-          charge_level = charge_level + item.energy
-        end
-      end
-      if not has_equipment then return -1 end
-    end
-  end
-  return charge_level
-end
-
---Returns non-colliding position (neighboring to the position targeted with jump targeter) where player can teleport to
-function Teleportation_CheckDestinationPosition(position, player)
-  if player.surface.can_place_entity({name = player.character.name, position = position}) or settings.get_player_settings(player)["Teleportation-straight-jump-ignores-collisions"].value then
-    return position
-  else
-    local newposition = player.surface.find_non_colliding_position(player.character.name, position, 2, 1)
-    if newposition then
-      return newposition
-    end
-  end
-  player.print({"message-invalid-destination"})
-  return false
-end
-
---Teleports player to the defined position on the defined surface
-function Teleportation_Teleport(player, surface_name, destination_position)
-  surface_name = surface_name or "nauvis"
-  --player.teleport({destination_position.x-0.3, destination_position.y + 0.1}, surface_name)
-  player.teleport({destination_position.x, destination_position.y+0.1}, surface_name)
-end
-
---Destroys enemies' projectiles neighboring to the player to prevent them from homing behavior after player's teleportation.
-function Teleportation_BlockProjectiles(player)
-  local radius = 30
-  local area = {{x = player.position.x - radius, y = player.position.y - radius}, {x = player.position.x + radius, y = player.position.y + radius}}
-  for i, entity in pairs(player.surface.find_entities_filtered{area = area, name="acid-projectile-purple"}) do
-    entity.destroy()
-  end
-end
-
---===================================================================--
---############################### GUI ###############################--
---===================================================================--
-
+--When the player has clicked a button of any gui
 function Teleportation_ProcessGuiClick(element)
   local gui_element = element
   local player_index = element.player_index
   local player = game.players[player_index]
-  if gui_element.name == "teleportation_main_button" then                 -- Main mod's button
+  if gui_element.name == "teleportation_main_button" then -- Main mod's button
     Teleportation_SwitchMainWindow(game.players[player_index])
-  elseif gui_element.name == "teleportation_button_page_back" then      -- < -button, prev.page
+  elseif gui_element.name == "teleportation_button_page_back" then -- < -button, prev.page
     Teleportation_InitializePlayerGlobals(player)
     if global.Teleportation.player_settings[player.name].beacons_list_current_page_num > 1 then
       global.Teleportation.player_settings[player.name].beacons_list_current_page_num = global.Teleportation.player_settings[player.name].beacons_list_current_page_num - 1
       Teleportation_UpdateMainWindow(player)
     end
-  elseif gui_element.name == "teleportation_button_page_forward" then      -- > -button, next page
+  elseif gui_element.name == "teleportation_button_page_forward" then -- > -button, next page
     Teleportation_InitializePlayerGlobals(player)
     global.Teleportation.player_settings[player.name].beacons_list_current_page_num = global.Teleportation.player_settings[player.name].beacons_list_current_page_num + 1
     Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_global" then      -- G -button, no sorting
+  elseif gui_element.name == "teleportation_button_sort_global" then -- Nonsorted button
     Teleportation_InitializePlayerGlobals(player)
     global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 1
     Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_distance_from_player" then -- P -button, by distance from player
+  elseif gui_element.name == "teleportation_button_sort_distance_from_player" then -- Sort by distance from player button
     Teleportation_InitializePlayerGlobals(player)
     global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 3
     Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_distance_from_start" then  -- S -button, by distance from start
+  elseif gui_element.name == "teleportation_button_sort_distance_from_start" then  -- Sort by distance from start button
     Teleportation_InitializePlayerGlobals(player)
     global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 2
     Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_alphabet" then  -- A -button, by alphabet
+  elseif gui_element.name == "teleportation_button_sort_alphabet" then  -- Alphabetical sort button
     Teleportation_InitializePlayerGlobals(player)
     global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 4
     Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_activate" then         -- T -button (teleport)
-    -- Checks if the player is in a vehicle - if so, fail
-    if player.vehicle and player.vehicle.valid then
-        player.print({"message-sitting-in-vehicle"})
-    else
+  elseif gui_element.name == "teleportation_button_activate" then -- Teleport button
       if Teleportation_ActivateBeacon(player, gui_element.parent.name) and global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
         --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
         Teleportation_UpdateMainWindow(player)
       end
-    end
   elseif gui_element.name == "teleportation_button_order_up" then         -- < -button (move up)
     if Teleportation_ReorderBeaconUp(gui_element.parent.name, player.force.name) then
       Teleportation_UpdateMainWindow(player)

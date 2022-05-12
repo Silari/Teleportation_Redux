@@ -80,3 +80,14 @@ function string:IsGreaterOrEqual(version_to_compare)
   end
   return true
 end
+
+function dictlength(adict)
+    if adict == nil then
+        return 0
+    end
+    local length = 0
+    for _ in pairs(adict) do
+        length = length + 1
+    end
+    return length
+end

@@ -76,6 +76,7 @@ function Telelogistics_CancelProviderLink(provider_key)
   end
 end
 
+--TODO This can skip an item if a beacon is removed. I COULD fix that by having the removal code find the beacon in the list, and if it's < index_of_last_processed_provider then reduce it by 1 to compensate.
 --Processes providers causing them to send items to the beacons
 function Telelogistics_ProcessProvidersQueue()
   -- If there are no Teleproviders, do nothing
