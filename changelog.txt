@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.8
+  Changes:
+    - Changed the message given when a beacon does not have enough power for a jump, and it's maximum buffer is less than the required amount.
+  Bugfixes:
+    - Fixed error when jumping when not in a vehicle due to missing check for vehicle.
+    - Fixed errors attempting to teleport when player does not have a character.
+    - Fixed incorrect collision checking when in a vehicle - collision check is now based on the vehicles collision box instead of always on the character's collision. Spidertron teleporting currently ignores collision due to the vehicle technically having none. Future update may improve this.
+---------------------------------------------------------------------------------------------------
 Version: 1.1.7
   Changes:
     - It is now possible to teleport while in a vehicle. The vehicle must have at least one teleport equipment installed, and thus must have an equipment grid.

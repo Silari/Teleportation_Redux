@@ -169,7 +169,11 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
         receiving_beacon.energy_interface.energy = receiving_beacon.energy_interface.energy - required_energy_beacon
         return true
       else --receiving_beacon.energy_interface.energy < required_energy_beacon
-        failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        if required_energy_beacon > receiving_beacon.energy_interface.electric_buffer_size then
+            failure_message = {"message-recv-buffer-too-low", math.floor(receiving_beacon.energy_interface.electric_buffer_size/1000000) .. "MJ"}
+        else
+            failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        end
         if not silent_mode then
           player.print(failure_message)
         end
@@ -182,7 +186,7 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
     equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
   end
   -- We need at least a little charge in the vehicle/personal equipment, otherwise assume there isn't any equipment.
-  if (equipment_energy + vehicle_energy) >= -1 then
+  if (equipment_energy + vehicle_energy) >= 0 then
     -- Must be enough energy in personal + vehicle equipment for teleport, or else not enough power message.
     if (equipment_energy + vehicle_energy) >= required_energy_eq then
       local receiving_beacon = beacon
@@ -203,7 +207,11 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
         receiving_beacon.energy_interface.energy = receiving_beacon.energy_interface.energy - required_energy_beacon
         return true
       else --receiving_beacon.energy_interface.energy < required_energy_beacon
-        failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        if required_energy_beacon > receiving_beacon.energy_interface.electric_buffer_size then
+            failure_message = {"message-recv-buffer-too-low", math.floor(receiving_beacon.energy_interface.electric_buffer_size/1000000) .. " MJ"}
+        else
+            failure_message = {"message-no-power-tb", math.floor(receiving_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        end
         if not silent_mode then
           player.print(failure_message)
         end
@@ -219,7 +227,11 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
   else -- no equipment and no charged sending beacon
     -- There was a beacon under the player, but it had no charge. That message takes priority over the no-sending-beacon message.
     if sending_beacon then
-      failure_message = {"message-sending-beacon-no-energy", math.floor(sending_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        if required_energy_beacon > sending_beacon.energy_interface.electric_buffer_size then
+            failure_message = {"message-send-buffer-too-low", math.floor(sending_beacon.energy_interface.electric_buffer_size/1000000) .. " MJ"}
+        else
+            failure_message = {"message-sending-beacon-no-energy", math.floor(sending_beacon.energy_interface.energy * 100 / required_energy_beacon)}
+        end
     else -- There wasn't a beacon under the player.
       failure_message = {"message-no-sending-beacons-or-equipment"}
     end
@@ -292,7 +304,9 @@ function Teleportation_ActivatePortal(player, destination_position)
           Teleportation_BlockProjectiles(player)
           Teleportation_Teleport(player, player.surface, valid_position)
           global.Teleportation.player_settings[player.name].used_portal_on_tick = game.tick
-          energy_required = Teleportation_DischargeVehicleEquipment(playervehicle, energy_required)
+          if vehicle_energy >= 0 then
+            energy_required = Teleportation_DischargeVehicleEquipment(playervehicle, energy_required)
+          end
           energy_required = Teleportation_DischargePlayerEquipment(player, energy_required)
           if energy_required > 0 then
               log("Error in teleportation redux: energy remaining after teleport! T_AP: " .. energy_required)
@@ -353,7 +367,7 @@ end
 
 -- Validates player and equipment grid then calls DischargeEquipment
 function Teleportation_DischargePlayerEquipment(player, energy_to_discharge)
-  if player ~= nil and player.valid and player.connected then
+  if player ~= nil and player.valid and player.connected and player.character then
     local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
     if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
       return Teleportation_DischargeEquipment(armor_as_item_stack.grid, energy_to_discharge)
@@ -395,7 +409,8 @@ end
 -- Gets the total charge of all teleport equipment
 function Teleportation_GetPlayerEquipmentChargeLevel(player)
   local charge_level = 0
-  if player ~= nil and player.valid and player.connected then
+  -- The player must exist, be valid, connected, and have a character in order to have armor.
+  if player ~= nil and player.valid and player.connected and player.character then
     local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
     if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
       local equipment = armor_as_item_stack.grid.equipment
@@ -410,7 +425,7 @@ function Teleportation_GetPlayerEquipmentChargeLevel(player)
     else -- no armor or no grid, so no equipment
         return -1
     end
-  else -- No valid connected player - shouldn't happen unless error in code but JIC no equip
+  else -- No valid connected player character - generally this means player is in god mode.
     return -1
   end
   return charge_level
@@ -450,10 +465,24 @@ end
 
 --Returns non-colliding position (neighboring to the position targeted with jump targeter) where player can teleport to
 function Teleportation_CheckDestinationPosition(position, player)
-  if player.surface.can_place_entity({name = player.character.name, position = position}) or settings.get_player_settings(player)["Teleportation-straight-jump-ignores-collisions"].value then
+  -- Collision detection option is off, so just use the position
+  if settings.get_player_settings(player)["Teleportation-straight-jump-ignores-collisions"].value then
+    return position
+  end
+  local entname = '' -- Holds the entity name we need to check for collision.
+  if player.vehicle and player.vehicle.valid then -- Player is in a vehicle
+    entname = player.vehicle.name
+  elseif player.character == nil then
+    return position -- Player has no character and thus no collision, so just use the position.
+  else -- Otherwise we just use the character.
+    entname = player.character.name
+  end
+  if player.surface.can_place_entity({name = entname, position = position}) then
+    -- We can land right where the player chose to, so use it.
     return position
   else
-    local newposition = player.surface.find_non_colliding_position(player.character.name, position, 2, 1)
+    -- We can't go right there, let's find a position fairly close to it then.
+    local newposition = player.surface.find_non_colliding_position(entname, position, 2, 1)
     if newposition then
       return newposition
     end
@@ -500,14 +529,15 @@ function Teleportation_RememberBeacon(entity)
   local energy_interface = entity.surface.create_entity({name = "teleportation-beacon-electric-energy-interface", position = entity.position, force = entity.force.name})
   energy_interface.minable = false
   energy_interface.destructible = false
+  -- CHANGE BUFFER SIZE HERE
   beacon.energy_interface = energy_interface
-	local chart_tag = {
+  local chart_tag = {
 		icon = {type = "item", name = "teleportation-portal"},
 		position = entity.position,
 		text = beacon.name,
 		last_user = entity.last_user,
 		target = beacon.entity
-	}
+  }
   local marker = entity.force.add_chart_tag(beacon.entity.surface, chart_tag)
   beacon.marker = marker
   table.insert(global.Teleportation.beacons, beacon)

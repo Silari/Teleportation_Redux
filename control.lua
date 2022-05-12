@@ -12,6 +12,7 @@
 -- Message for Ctrl+Y jumping: if the beacon doesn't have enough energy, you just get a Can't Jump message.
 -- Note that it checks every beacon by distance until it finds one that works, so you can't just unsupress the 'not enough energy' message in activatebeacon
 --  Though I think I might have pre-checked for every other possible error, so maybe I can make the generic message "Not enough energy on any beacon"
+-- STILL happens on vehicle jumping
 
 -- Maybe switch things up to use the linked chests/linked belts. Some downsides: only allows same entity type transfer, always bi-directional, no throughput limit.
 
