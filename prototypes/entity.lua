@@ -90,6 +90,7 @@ data:extend({
 	{
 		type = "container",
 		name = "teleportation-beacon",
+        localised_description = {"entity-description.teleportation-beacon",settings.startup["Teleportation-beacon-storage"].value .. "MJ",settings.startup["Teleportation-beacon-charge"].value .. "MW",settings.startup["Teleportation-beacon-usage"].value .. "MJ"},
 		icon = "__Teleportation_Redux__/graphics/icon.png",
         icon_size = 32,
 		flags = {"placeable-neutral", "placeable-player", "player-creation"},
@@ -140,19 +141,10 @@ data:extend({
     energy_source =
     {
       type = "electric",
-      buffer_capacity = "300MJ",
+      buffer_capacity = settings.startup["Teleportation-beacon-storage"].value .. "MJ",
       usage_priority = "secondary-input",
-      input_flow_limit = "5MW",
+      input_flow_limit = settings.startup["Teleportation-beacon-charge"].value .. "MW",
       output_flow_limit = "0W"
-    },
-    {
-      filename = "__Teleportation_Redux__/graphics/tiers/orange/spritesheet.png",
-      priority = "extra-high",
-      width = 128,
-      height = 128,
-      line_length = 16,
-      frame_count = 16,
-      shift = {0, 0}
     },
     charge_animation =
     {

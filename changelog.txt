@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.9
+  Changes:
+    - Added info to the teleporter shortcut to allow the game to display the hotkey combination it uses.
+    - Added new startup settings for energy storage and usage.
+      - Beacon descriptions should use the current settings for the shown energy usage.
+    - Added new technology to upgrade beacon storage. Especially useful for modded vehicles as the default energy storage may not be enough for them to teleport.
+  Bugfixes:
+    - Fixed a can't jump message when destination beacons don't have enough energy.
+---------------------------------------------------------------------------------------------------
 Version: 1.1.8
   Changes:
     - Changed the message given when a beacon does not have enough power for a jump, and it's maximum buffer is less than the required amount.

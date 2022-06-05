@@ -23,6 +23,17 @@ function Common_IsEntityOk(entity)
   return entity and entity.valid
 end
 
+function GetBeaconBonus(force)
+    -- Find the level of the storage tech.
+    local mytech = force.technologies["teleportation-tech-storage"]
+    local techlevel = mytech.level
+    if mytech.researched then -- If it's researched then it's max level, but the game STILL says level 4 so correct that.
+        techlevel = 5
+    end
+    --log("Beacon bonus: " .. .25 * (techlevel - 1))
+    return .25 * (techlevel - 1)
+end 
+
 --Checks if player is holding defined item in his hand
 function Common_IsHolding(stack, player) -- thanks to supercheese (Orbital Ion Cannon author)
 	local holding = player.cursor_stack

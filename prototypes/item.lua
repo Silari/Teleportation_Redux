@@ -29,6 +29,7 @@ data:extend({
   {
     type = "item",
     name = "teleportation-equipment",
+    localised_description = {"item-description.teleportation-equipment",settings.startup["Teleportation-equip-beacon"].value .. "MJ",settings.startup["Teleportation-equip-portal"].value .. "kJ"},
     icon = "__Teleportation_Redux__/graphics/Personal_Teleporter_item.png",
     icon_size = 32,
     placed_as_equipment_result = "teleportation-equipment",
@@ -99,7 +100,7 @@ end
 --Shortcut to give the player a jump targeter
 targeter_shortcut = {
       action = "spawn-item",
-      -- no input for now, maybe later associated_control_input = "give-upgrade-planner",
+      associated_control_input = "teleportation-hotkey-jump-targeter",
       icon = {
         filename = "__Teleportation_Redux__/graphics/portal-32.png",
         flags = {

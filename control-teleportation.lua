@@ -110,7 +110,7 @@ function Teleportation_ActivateNearestBeacon(player)
         return true
       end
     end
-    player.print({"message-jump-to-closest-beacon-failure"})
+    player.print({"message-no-destination"})
     return false
   end
 end
@@ -530,6 +530,7 @@ function Teleportation_RememberBeacon(entity)
   energy_interface.minable = false
   energy_interface.destructible = false
   -- CHANGE BUFFER SIZE HERE
+  energy_interface.electric_buffer_size = energy_interface.electric_buffer_size * (1 + GetBeaconBonus(entity.force))
   beacon.energy_interface = energy_interface
   local chart_tag = {
 		icon = {type = "item", name = "teleportation-portal"},
@@ -1054,11 +1055,12 @@ function Teleportation_Migrate()
     log("Recollecting beacons...")
     Teleportation_RefreshBeaconsAndMakeTheirEntitiesUnoperable()
     if global.Teleportation and global.Teleportation.beacons and #global.Teleportation.beacons > 0 then
+      local basebuffer = settings.startup["Teleportation-beacon-storage"].value * 1000000
       for i = #global.Teleportation.beacons, 1, -1 do
         local beacon = global.Teleportation.beacons[i]
-        if beacon.entity == nil or not beacon.entity.valid then
+        if beacon.entity == nil or not beacon.entity.valid then -- Beacon isn't valid, clean up associated stuff.
           log("Removing invalid beacon: " .. serpent.block(beacon))
-          -- If the beacon isn't valid, we need to remove it from our table and cleanup the marker and accumulator
+          -- If the beacon isn't valid, we need to remove it from our table and cleanup the map marker and accumulator
           if beacon.marker and beacon.marker.valid then
             beacon.marker.destroy()
           end
@@ -1068,6 +1070,7 @@ function Teleportation_Migrate()
           -- We're working backwards along our list, so this is fine.
           table.remove(global.Teleportation.beacons, i)
         else
+            -- This remakes the beacon marker, even if it's valid. I'm not sure why, I guess as a JIC catch all?
             if beacon.marker then
               if beacon.marker.valid then
                 beacon.marker.destroy()
@@ -1081,7 +1084,15 @@ function Teleportation_Migrate()
               last_user = beacon.entity.last_user,
               target = beacon.entity
             }
+            -- Readds the marker for the appropriate force. 
             beacon.marker = beacon.entity.force.add_chart_tag(beacon.entity.surface, chart_tag)
+            if not beacon.energy_interface.valid then
+                log("Beacon energy interface is not valid. This should not happen!")
+            else
+                --log("Beacon storage: " .. beacon.energy_interface.electric_buffer_size)
+                beacon.energy_interface.electric_buffer_size = basebuffer * (1 + GetBeaconBonus(beacon.entity.force))
+                --log("Beacon storage: " .. beacon.energy_interface.electric_buffer_size)
+            end
         end
       end
     end

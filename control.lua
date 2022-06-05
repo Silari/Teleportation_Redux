@@ -11,15 +11,13 @@
 
 -- Message for Ctrl+Y jumping: if the beacon doesn't have enough energy, you just get a Can't Jump message.
 -- Note that it checks every beacon by distance until it finds one that works, so you can't just unsupress the 'not enough energy' message in activatebeacon
---  Though I think I might have pre-checked for every other possible error, so maybe I can make the generic message "Not enough energy on any beacon"
--- STILL happens on vehicle jumping
+--  Though I think I might have pre-checked for every other possible error, so maybe I can make the generic message "Not enough energy on any beacon" -- Did this, so it should be fine now
 
 -- Maybe switch things up to use the linked chests/linked belts. Some downsides: only allows same entity type transfer, always bi-directional, no throughput limit.
 
--- Move some items into settings - disabled for now possibly. Energy usages, max charge and charge rates.
--- Update the locale to use setting information to show charge amounts/energy usage.
+-- Maybe have vehicle modifier values in settings
 
---NEXT VERSION
+--
 --Change how the new jump targeting works
 --ONE: Have it use the bounding box created to find a jumpable point. Ensure that even clicking with it allows jumping!
 --TWO: Require that the position being jumped to is charted, possibly a setting to require visibility. Technically you could find nests by attempting to jump into unvisible areas, and I think the 'can't find a spot' message would take precedence over the 'not enough energy' one. No equipment is first though IIRC.
@@ -52,6 +50,25 @@ end
 script.on_configuration_changed(on_changed)
 
 script.on_event(defines.events.on_player_selected_area, Teleport_Area)
+
+
+
+-- Handles updating beacon buffers when technology is researched (or unresearched)
+function upgradebeacons(event)
+    if event.research.name == "teleportation-tech-storage" then -- We only care if its our research
+        local basebuffer = settings.startup["Teleportation-beacon-storage"].value * 1000000
+        for i = #global.Teleportation.beacons, 1, -1 do -- Iterate over all our saved beacons
+            local interface = global.Teleportation.beacons[i].energy_interface
+            if interface and interface.valid then -- Energy interface is valid.
+                if interface.force.name == event.research.force.name then -- Belongs to force that did the research
+                    interface.electric_buffer_size = basebuffer * (1 + GetBeaconBonus(interface.force))
+                end
+            end
+        end
+    end
+end
+script.on_event(defines.events.on_research_finished, upgradebeacons)
+script.on_event(defines.events.on_research_reversed, upgradebeacons)
 
 --When beacon get placed by entity of any force, all players of this force should get their GUI updated.
 --When teleprovider get placed, it should be remembered.
@@ -113,7 +130,7 @@ script.on_event(defines.events.on_pre_build, function(event)
   end
 end)
 
---Err... I don't like any tickers... 
+
 script.on_event(defines.events.on_tick, function(event)
   if not global.tick_of_last_check then
     global.tick_of_last_check = event.tick
@@ -136,16 +153,6 @@ script.on_event(defines.events.on_gui_click, function(event)
     Telelogistics_ProcessGuiClick(event.element)
   end
 end)
-
---Taken from homeworld code - just prints text to all players.
-function PrintToAllPlayers( text )
-	for playerIndex = 1, #game.players do
-		if game.players[playerIndex] ~= nil then
-			game.players[playerIndex].print(text)
-		end
-	end
-end
-
 
 --===================================================================--
 --############################ FUNCTIONS ############################--
