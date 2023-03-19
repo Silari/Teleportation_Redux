@@ -254,7 +254,12 @@ function Teleport_Area(event)
         --  Would need that to move HERE so that we can cancel jump if it's outside our area.
         --  Actually might just need to call Teleportation_CheckDestinationPosition here and give it the bounding box.
         --  find_non_colliding_position_in_box(name, search_space, precision, force_to_tile_center) is the good call
-        Teleportation_ActivatePortal(player, event.area.left_top)
+        if player.force.is_chunk_charted(player.surface, {event.area.left_top.x/32,event.area.left_top.y/32}) then
+            Teleportation_ActivatePortal(player, event.area.left_top)
+        else
+            player.print({"message-invalid-destination"})
+            return false
+        end
     end
 end
 
@@ -491,14 +496,14 @@ function Teleportation_CheckDestinationPosition(position, player)
   return false
 end
 
---Teleports player to the defined position on the defined surface
+--Teleports player/vehicle to the defined position on the defined surface
 function Teleportation_Teleport(player, surface_name, destination_position)
   surface_name = surface_name or "nauvis"
   -- If the player is in a vehicle, teleport that, otherwise teleport the player.
   if player.vehicle and player.vehicle.valid then
-    player.vehicle.teleport({destination_position.x, destination_position.y+0.1}, surface_name)
+    player.vehicle.teleport({destination_position.x, destination_position.y+0.1}, surface_name, true)
   else
-    player.teleport({destination_position.x, destination_position.y+0.1}, surface_name)
+    player.teleport({destination_position.x, destination_position.y+0.1}, surface_name, true)
   end
 end
 

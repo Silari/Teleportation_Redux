@@ -6,6 +6,9 @@
 
 -- Silari's TODO notes
 
+-- Fix the max_stack code in telelogistics.TopUpCount to use the actual stack size of the item.
+-- Also, optimize that. It's calling TopUpCount and counting all the items in the chest for every type of item in the chest - it only needs to count ONCE.
+
 -- Teleportation update:
 -- Make clicking a beacon open up the teleporter GUI? Note that beacons are currently set as active = false when placed! I might wanna remove that. It doesn't really do much other than stop the player from opening the beacon as a chest, and if it opens like that I could add a mod gui next to it to add details/rename.
 
@@ -27,6 +30,7 @@ require("config")
 require("control-common")
 require("control-teleportation")
 require("control-telelogistics")
+
 
 --===================================================================--
 --########################## EVENT HANDLERS #########################--
@@ -51,10 +55,30 @@ script.on_configuration_changed(on_changed)
 
 script.on_event(defines.events.on_player_selected_area, Teleport_Area)
 
-
+function paste_teleport(event)
+    --if isdebug then game.print("Paste: " .. event.source.name) end
+    -- We can only copy to a teleprovider, so check that first.
+    if event.destination and event.destination.name == "teleportation-teleprovider" then
+        if event.source and event.source.name == "teleportation-beacon" then
+            -- Copy from beacon to provider - set the beacon as this provider's destination
+            --if isdebug then game.print("Pasted: " .. event.destination.name) end
+            local beacon_key = Common_CreateEntityKey(event.source)
+            local provider_key = Common_CreateEntityKey(event.destination)
+            -- This links the two entities just like using the GUI would.
+            Telelogistics_LinkProviderWithBeacon(provider_key, beacon_key)
+        elseif event.source and event.source.name == "teleportation-teleprovider" then
+            -- Copy from provider to provider - set the same beacon as the destination.
+            local source_key = Common_CreateEntityKey(event.source)
+            local dest_key = Common_CreateEntityKey(event.destination)
+            Telelogistics_CopyProvider(source_key, dest_key)
+        end
+    end
+end
+script.on_event(defines.events.on_entity_settings_pasted, paste_teleport)
 
 -- Handles updating beacon buffers when technology is researched (or unresearched)
 function upgradebeacons(event)
+    if not global.Teleportation then return end -- No beacons built yet, so skip it.
     if event.research.name == "teleportation-tech-storage" then -- We only care if its our research
         local basebuffer = settings.startup["Teleportation-beacon-storage"].value * 1000000
         for i = #global.Teleportation.beacons, 1, -1 do -- Iterate over all our saved beacons

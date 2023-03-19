@@ -1,9 +1,28 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.12
+Date: 18.03.2023
+  Features:
+    - Added the 'script_raised_teleport' parameter where appropriate. This should help other mods play nicer when players/vehicles are teleported.
+  Bugfixes:
+    - Solved a crash from upgrading technologies prior to building any beacons.
+---------------------------------------------------------------------------------------------------
+Version: 1.1.11
+  Features:
+    - Added ability to copy beacon settings and paste onto logistic providers in order to set that beacon as the destination. Likewise, you can copy/paste teleprovider settings onto another to copy its destination beacon (or lack of one).
+  Bugfixes:
+    - Removed mipmap property on two entities that did not have them.
+---------------------------------------------------------------------------------------------------
+Version: 1.1.10
+  Changes:
+    - Jump Portal can only target areas that have been mapped by the player's force. This avoids issues with attempting to teleport to a non-generated chunk.
+  Translation:
+    - Updated the Russian locale with changes provided by Apriori (the original author of the mod).
+---------------------------------------------------------------------------------------------------
 Version: 1.1.9
   Changes:
     - Added info to the teleporter shortcut to allow the game to display the hotkey combination it uses.
     - Added new startup settings for energy storage and usage.
-      - Beacon descriptions should use the current settings for the shown energy usage.
+      - Beacon and personal teleporter descriptions should use the current settings for the shown energy usage.
     - Added new technology to upgrade beacon storage. Especially useful for modded vehicles as the default energy storage may not be enough for them to teleport.
   Bugfixes:
     - Fixed a can't jump message when destination beacons don't have enough energy.
