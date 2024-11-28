@@ -1,6 +1,6 @@
 {
   "name": "Teleportation_Redux",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "title": "Teleportation_Redux",
   "author": "Silari",
   "description": "Mid and late-game techs for teleportation devices. Adds beacons which allow teleportation between them, and equipment that allows teleporting to a selected tile using a remote. Both methods require power proportional to the distance traveled. Also includes optional telelogistics technology which transfers items from a Teleprovider chest to a selected Beacon (hit R on the chest to set it).\n\nOriginal by Apriori, updated to 0.17+ by Silari.",

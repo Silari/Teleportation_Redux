@@ -156,8 +156,10 @@ function Telelogistics_ProcessProvider(provider)
   local provider_inventory = thisitem.entity.get_inventory(defines.inventory.chest)
   local provider_inventory_contents = provider_inventory.get_contents()
   for key, data in pairs(provider_inventory_contents) do
+    --log(serpent.block(data))
     item_name = data.name
     count = data.count
+    quality = data.quality
     --log(item_name .. " : " .. serpent.block(count))
     if item_name and count then 
       local remainder = TopUpCount(beacon_inventory, item_name)
@@ -165,9 +167,9 @@ function Telelogistics_ProcessProvider(provider)
         -- Need to limit the amount we transfer to the amount availalble or the top-up value, whichever is smaller.
         local amount_to_transfer = count
         if amount_to_transfer > remainder then amount_to_transfer = remainder end
-        local inserted_count = beacon_inventory.insert({name = item_name, count = amount_to_transfer})
+        local inserted_count = beacon_inventory.insert({name = item_name, count = amount_to_transfer, quality=quality})
         if inserted_count > 0 then
-          provider_inventory.remove({name = item_name, count = inserted_count})
+          provider_inventory.remove({name = item_name, count = inserted_count, quality=quality})
           --game.players[1].print("Provider processed")
         end
       end
