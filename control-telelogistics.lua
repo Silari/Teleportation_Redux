@@ -1,10 +1,10 @@
 --[[Global variables hierarchy in this part of mod:
-  global
+  storage
     Telelogistics = {}; dictionary
       teleproviders = {}; list
         entity = LuaEntity; contains such fields as built_by (last_user since 0.14.6), position, surface, force and so on - needed to operate with
         key = entity.surface.name .. "-" .. entity.position.x .. "-" .. entity.position.y; it's an id for gui elements representing this provider
-        receiver_key = string; global.Teleportation.beacons[].key of the beacon receiving items from this provider
+        receiver_key = string; storage.Teleportation.beacons[].key of the beacon receiving items from this provider
       index_of_last_processed_provider = number; for processing providers' queue
 ]]
 
@@ -28,11 +28,11 @@ end)
 
 --Ensures that globals were initialized. Called by on_configuration_changed
 function Telelogistics_InitializeGeneralGlobals()
-  if not global.Telelogistics then
-    global.Telelogistics = {}
+  if not storage.Telelogistics then
+    storage.Telelogistics = {}
   end
-  if not global.Telelogistics.teleproviders then
-    global.Telelogistics.teleproviders = {}
+  if not storage.Telelogistics.teleproviders then
+    storage.Telelogistics.teleproviders = {}
   end
 end
 
@@ -42,18 +42,18 @@ function Telelogistics_RememberProvider(entity)
     entity = entity,
     key = Common_CreateEntityKey(entity)
   }
-  table.insert(global.Telelogistics.teleproviders, provider)
-  --game.players[1].print("Remembered")
+  table.insert(storage.Telelogistics.teleproviders, provider)
+  --game.print("Remembered")
 end
 
 --Removes destroyed provider from the global list
 function Telelogistics_ForgetProvider(entity)
   local key_to_forget = Common_CreateEntityKey(entity)
-    for i = #global.Telelogistics.teleproviders, 1, -1 do
-    local provider = global.Telelogistics.teleproviders[i]
+    for i = #storage.Telelogistics.teleproviders, 1, -1 do
+    local provider = storage.Telelogistics.teleproviders[i]
     if provider.key == key_to_forget then
-      table.remove(global.Telelogistics.teleproviders, i)
-      --game.players[1].print("Forgot")
+      table.remove(storage.Telelogistics.teleproviders, i)
+      --game.print("Forgot")
       return
     end
   end
@@ -64,7 +64,7 @@ function Telelogistics_LinkProviderWithBeacon(provider_key, beacon_key)
   local beacon = Common_GetBeaconByKey(beacon_key)
   if provider and beacon then
     provider.receiver_key = beacon_key
-    --game.players[1].print("Linked")
+    --game.print("Linked")
   end
 end
 
@@ -72,52 +72,72 @@ function Telelogistics_CancelProviderLink(provider_key)
   local provider = Common_GetTeleproviderByKey(provider_key)
   if provider then
     provider.receiver_key = nil
-    --game.players[1].print("Unlinked")
+    --game.print("Unlinked")
   end
 end
+
+-- Copies the target beacon from one Telelogistics provider to another.
+function Telelogistics_CopyProvider(provider_key, dest_key)
+    local provider = Common_GetTeleproviderByKey(provider_key)
+    local dest_beacon -- Will get filled with target beacon, if any.
+    if provider then
+        -- This is the internal key used to represent the beacon this provider is using.
+        dest_beacon = provider.receiver_key
+    end
+    if dest_beacon then
+        -- We found a destination beacon, find the data for our pasted teleprovider
+        local newprovider = Common_GetTeleproviderByKey(dest_key)
+        if newprovider then -- Add the beacon as the receiver for this provider.
+            newprovider.receiver_key = dest_beacon
+        end
+    else -- No destination beacon set on copied source, so remove any from the destination.
+        Telelogistics_CancelProviderLink(dest_key)
+    end
+end
+
 
 --TODO This can skip an item if a beacon is removed. I COULD fix that by having the removal code find the beacon in the list, and if it's < index_of_last_processed_provider then reduce it by 1 to compensate.
 --Processes providers causing them to send items to the beacons
 function Telelogistics_ProcessProvidersQueue()
   -- If there are no Teleproviders, do nothing
-  if #global.Telelogistics.teleproviders == 0 then return end
+  if #storage.Telelogistics.teleproviders == 0 then return end
   if settings.global["Teleportation-Dynamic-Loop"].value then
     --dynamic speed, attempt every provider over a second.
-    local last_index = global.Telelogistics.index_of_last_processed_provider or 0
-    local target_index = last_index + math.ceil(#global.Telelogistics.teleproviders/60)
+    local last_index = storage.Telelogistics.index_of_last_processed_provider or 0
+    local target_index = last_index + math.ceil(#storage.Telelogistics.teleproviders/60)
     local current_index = last_index + 1
     while current_index <= target_index do
         --Attempt to process the Provider at the current_index, if one exists.
         --Note it's possible for current_index to be greater than the number of providers, if the count changed within
         --the last second (if some were removed, for example)
-        if global.Telelogistics.teleproviders[current_index] then
+        if storage.Telelogistics.teleproviders[current_index] then
             Telelogistics_ProcessProvider(current_index)
         end
         current_index = current_index + 1
     end
     --Set our last processed provider to the last target, or 0 
-    if target_index > #global.Telelogistics.teleproviders then
+    if target_index > #storage.Telelogistics.teleproviders then
         target_index = 0
     end
-    global.Telelogistics.index_of_last_processed_provider = target_index
+    storage.Telelogistics.index_of_last_processed_provider = target_index
   else
     -- Static speed, one provider per tick.
-    local last_index = global.Telelogistics.index_of_last_processed_provider or 0
+    local last_index = storage.Telelogistics.index_of_last_processed_provider or 0
     local current_index = last_index + 1
-    if global.Telelogistics.teleproviders[current_index] then
+    if storage.Telelogistics.teleproviders[current_index] then
         Telelogistics_ProcessProvider(current_index)
-        global.Telelogistics.index_of_last_processed_provider = current_index
+        storage.Telelogistics.index_of_last_processed_provider = current_index
     else
-        global.Telelogistics.index_of_last_processed_provider = 0
+        storage.Telelogistics.index_of_last_processed_provider = 0
     end
   end
 end
 
 function Telelogistics_ProcessProvider(provider)
-  local thisitem = global.Telelogistics.teleproviders[provider]
+  local thisitem = storage.Telelogistics.teleproviders[provider]
   if not Common_IsEntityOk(thisitem.entity) then
     --PrintToAllPlayers("processing: ".. tostring(provider))
-    table.remove(global.Telelogistics.teleproviders, provider)
+    table.remove(storage.Telelogistics.teleproviders, provider)
     --game.players[1].print("Processing: provider is not valid")
     return
   end
@@ -135,13 +155,16 @@ function Telelogistics_ProcessProvider(provider)
   local beacon_inventory = beacon.entity.get_inventory(defines.inventory.chest)
   local provider_inventory = thisitem.entity.get_inventory(defines.inventory.chest)
   local provider_inventory_contents = provider_inventory.get_contents()
-  for item_name, count in pairs(provider_inventory_contents) do
+  for key, data in pairs(provider_inventory_contents) do
+    item_name = data.name
+    count = data.count
+    --log(item_name .. " : " .. serpent.block(count))
     if item_name and count then 
       local remainder = TopUpCount(beacon_inventory, item_name)
       if  remainder > 0 then
         -- Need to limit the amount we transfer to the amount availalble or the top-up value, whichever is smaller.
         local amount_to_transfer = count
-        if amount_to_transfer  > remainder then amount_to_transfer = remainder end
+        if amount_to_transfer > remainder then amount_to_transfer = remainder end
         local inserted_count = beacon_inventory.insert({name = item_name, count = amount_to_transfer})
         if inserted_count > 0 then
           provider_inventory.remove({name = item_name, count = inserted_count})
@@ -204,9 +227,9 @@ function Telelogistics_OpenLinkerWindow(player, provider_key)
   scroll.style.minimal_width = 200
   local gui_table = scroll.add({type="table", name=provider_key, column_count=1})
   --gui_table.style.cell_spacing = 0
-  local list = global.Teleportation.beacons
+  local list = storage.Teleportation.beacons
   Teleportation_InitializePlayerGlobals(player)
-  local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by, player)
+  local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by, player)
   for i, beacon in pairs(list_sorted) do
     local is_linked = false
     if provider.receiver_key == beacon.key then

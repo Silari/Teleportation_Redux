@@ -78,11 +78,11 @@ script.on_event(defines.events.on_entity_settings_pasted, paste_teleport)
 
 -- Handles updating beacon buffers when technology is researched (or unresearched)
 function upgradebeacons(event)
-    if not global.Teleportation then return end -- No beacons built yet, so skip it.
+    if not storage.Teleportation then return end -- No beacons built yet, so skip it.
     if event.research.name == "teleportation-tech-storage" then -- We only care if its our research
         local basebuffer = settings.startup["Teleportation-beacon-storage"].value * 1000000
-        for i = #global.Teleportation.beacons, 1, -1 do -- Iterate over all our saved beacons
-            local interface = global.Teleportation.beacons[i].energy_interface
+        for i = #storage.Teleportation.beacons, 1, -1 do -- Iterate over all our saved beacons
+            local interface = storage.Teleportation.beacons[i].energy_interface
             if interface and interface.valid then -- Energy interface is valid.
                 if interface.force.name == event.research.force.name then -- Belongs to force that did the research
                     interface.electric_buffer_size = basebuffer * (1 + GetBeaconBonus(interface.force))
@@ -97,17 +97,17 @@ script.on_event(defines.events.on_research_reversed, upgradebeacons)
 --When beacon get placed by entity of any force, all players of this force should get their GUI updated.
 --When teleprovider get placed, it should be remembered.
 script.on_event({defines.events.on_built_entity, defines.events.on_robot_built_entity}, function(event) 
-  if event.created_entity.name == "teleportation-beacon" then
-    Teleportation_RememberBeacon(event.created_entity)
-  elseif event.created_entity.name == "teleportation-teleprovider" then
-    Telelogistics_RememberProvider(event.created_entity)
-  elseif event.created_entity.name == "teleportation-portal" then
-    local player = event.created_entity.last_user
+  if event.entity.name == "teleportation-beacon" then
+    Teleportation_RememberBeacon(event.entity)
+  elseif event.entity.name == "teleportation-teleprovider" then
+    Telelogistics_RememberProvider(event.entity)
+  elseif event.entity.name == "teleportation-portal" then
+    local player = event.entity.last_user
     player.cursor_stack.set_stack({name = "teleportation-portal", count = 1})
-    event.created_entity.destroy()
-  elseif event.created_entity.name == "entity-ghost" then
-    if event.created_entity.ghost_name == "teleportation-portal" then
-      event.created_entity.destroy()
+    event.entity.destroy()
+  elseif event.entity.name == "entity-ghost" then
+    if event.entity.ghost_name == "teleportation-portal" then
+      event.entity.destroy()
     end
   end
 end)
@@ -147,7 +147,7 @@ script.on_event(defines.events.on_pre_build, function(event)
   --player.print("Putting item " .. game.tick)
   if Common_IsHolding({name="teleportation-portal", count=1}, player) then
     local destination = event.position
-    if Teleportation_ActivatePortal(player, destination) and global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
+    if Teleportation_ActivatePortal(player, destination) and storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
       --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
       Teleportation_UpdateMainWindow(player)
     end
@@ -156,11 +156,11 @@ end)
 
 
 script.on_event(defines.events.on_tick, function(event)
-  if not global.tick_of_last_check then
-    global.tick_of_last_check = event.tick
+  if not storage.tick_of_last_check then
+    storage.tick_of_last_check = event.tick
   end
-  if event.tick - global.tick_of_last_check >= 30 then
-    global.tick_of_last_check = event.tick
+  if event.tick - storage.tick_of_last_check >= 30 then
+    storage.tick_of_last_check = event.tick
     Teleportation_EnergyProgressUpdate()
     Teleportation_RemindSelectedBeacons()
   end

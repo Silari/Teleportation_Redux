@@ -1,9 +1,11 @@
-local portal_targeter = util.table.deepcopy(data.raw["ammo-turret"]["gun-turret"])
 
+-- The portal targeter is no longer used, but kept in for old version support.
+local portal_targeter = util.table.deepcopy(data.raw["ammo-turret"]["gun-turret"])
 portal_targeter.name = "teleportation-portal"
 portal_targeter.icon = "__Teleportation_Redux__/graphics/portal-64.png"
+portal_targeter.icon_mipmaps = nil
 portal_targeter.flags = {"placeable-neutral", "player-creation","placeable-off-grid"}
-portal_targeter.collision_mask = {}
+portal_targeter.collision_mask = nil
 portal_targeter.max_health = 1
 portal_targeter.inventory_size = 0
 portal_targeter.collision_box = {{ 0, 0}, {0, 0}}
@@ -58,7 +60,6 @@ portal_targeter.attack_parameters =
 		energy_consumption = "0J"
 	}
 }
-
 data:extend({portal_targeter})
 
 data:extend({
@@ -109,7 +110,7 @@ data:extend({
 			}
 		},
         collision_box = {{-2, -2}, {1.9,1.9}},
-        collision_mask = {"water-tile", "item-layer", "object-layer"},
+        collision_mask = {layers={water_tile=true, item=true, object=true}},
         selection_box = {{-2, -2}, {2, 2}},
         render_layer = decorative,
 		inventory_size = 10,
@@ -135,7 +136,7 @@ data:extend({
     max_health = 1,
     corpse = "medium-remnants",
     collision_box = {{-2, -2}, {2,2}},
-    collision_mask = {"water-tile", "item-layer", "object-layer"},
+    collision_mask = {layers={water_tile=true, item=true, object=true}},
     selection_box = {{0, 0}, {0, 0}},
     render_layer = decorative,
     energy_source =
@@ -177,6 +178,7 @@ if settings.startup["Teleportation-telelogistics-enabled"].value then
   local teleprovider = util.table.deepcopy(data.raw["container"]["steel-chest"])
   teleprovider.name = "teleportation-teleprovider"
   teleprovider.icon = "__Teleportation_Redux__/graphics/teleprovider-icon.png"
+  teleprovider.icon_mipmaps = nil
   teleprovider.icon_size = 32
   teleprovider.minable = {mining_time = 1, result = "teleportation-teleprovider"}
   teleprovider.inventory_size = 1

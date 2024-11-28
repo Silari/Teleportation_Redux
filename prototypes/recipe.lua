@@ -4,12 +4,12 @@ data:extend({
 		name = "teleportation-beacon",
 		enabled = false,
 		ingredients =	{
-			{"steel-plate", 100},
-			{"copper-plate", 100},
-			{"advanced-circuit", 100},
-			{"accumulator", 100}
+			{name="steel-plate", amount=100,type="item"},
+			{name="copper-plate", amount=100,type="item"},
+			{name="advanced-circuit", amount=100,type="item"},
+			{name="accumulator", amount=100,type="item"}
 		},
-		result = "teleportation-beacon",
+		results = {{name="teleportation-beacon",amount=1,type="item"}},
 		energy_required = 5
 	},
 	{
@@ -18,22 +18,22 @@ data:extend({
 		enabled = false,
 		energy_required = 10,
 		ingredients =	{
-			{"teleportation-beacon", 1},
-			{"speed-module", 100},
-			{"plastic-bar", 100},
-			{"copper-cable", 50},
-			{"fusion-reactor-equipment", 15}
+			{name="teleportation-beacon", amount=1,type="item"},
+			{name="speed-module", amount=100,type="item"},
+			{name="plastic-bar", amount=100,type="item"},
+			{name="copper-cable", amount=50,type="item"},
+			{name="fission-reactor-equipment", amount=15,type="item"}
 		},
-		result = "teleportation-equipment",
+		results = {{name="teleportation-equipment",amount=1,type="item"}},
 	},
 	{
 		type = "recipe",
 		name = "teleportation-portal",
 		enabled = false,
 		ingredients = {
-			{"processing-unit", 10}
+			{name="processing-unit", amount=10,type="item"}
 		},
-		result = "teleportation-portal",
+		results = {{name="teleportation-portal",amount=1,type="item"}},
 		energy_required = 30
 	},
 })
@@ -44,11 +44,11 @@ if settings.startup["Teleportation-telelogistics-enabled"].value then
       name = "teleportation-teleprovider",
       enabled = false,
       ingredients =	{
-        {"logistic-chest-active-provider", 1},
-        {"advanced-circuit", 10},
-        {"processing-unit", 1}
+        {name="active-provider-chest", amount=1,type="item"},
+        {name="advanced-circuit", amount=10,type="item"},
+        {name="processing-unit", amount=1,type="item"}
       },
-      result = "teleportation-teleprovider",
+      results = {{name="teleportation-teleprovider",amount=1,type="item"}},
       energy_required = 5
     },
   })

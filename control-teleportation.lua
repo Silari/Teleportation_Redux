@@ -1,5 +1,5 @@
 --[[Global variables hierarchy in this mod:
-  global
+  storage
     Teleportation = {}; dictionary
       beacons = {}; list
         entity = LuaEntity; contains such fields as built_by (last_user since 0.14.6), position, surface, force and so on - needed to teleport and to operate with players gui
@@ -7,7 +7,7 @@
         marker = LuaCustomChartTag; contains marker to show beacon's name on map;
         key = entity.surface.name .. "-" .. entity.position.x .. "-" .. entity.position.y; it's an id for gui elements representing this beacon
         name = "x:" .. entity.position.x .. ",y:" .. entity.position.y .. ",s:" .. entity.surface.name; it's default name to show in gui element
-      player_settings = {}; dictionary, e.g. global.Teleportation.player_settings[player_name].used_portal_on_tick
+      player_settings = {}; dictionary, e.g. storage.Teleportation.player_settings[player_name].used_portal_on_tick
         used_portal_on_tick; number
         beacons_list_is_sorted_by; number: 1 is global list as is (default), 2 is sorting by distance from start, 3 is sorting by distance from player, 4 is sorting by alphabet
         beacons_list_current_page_num; number, default is 1
@@ -37,32 +37,32 @@ end)
 
 --Ensures that globals were initialized.
 function Teleportation_InitializeGeneralGlobals()
-  if not global.Teleportation then
-    global.Teleportation = {}
+  if not storage.Teleportation then
+    storage.Teleportation = {}
   end
-  if not global.Teleportation.beacons then
-    global.Teleportation.beacons = {}
+  if not storage.Teleportation.beacons then
+    storage.Teleportation.beacons = {}
   end
 end
 
 --Ensures that globals were initialized.
 function Teleportation_InitializePlayerGlobals(player)
   Teleportation_InitializeGeneralGlobals()
-  if not global.Teleportation.player_settings then
-    global.Teleportation.player_settings = {}
+  if not storage.Teleportation.player_settings then
+    storage.Teleportation.player_settings = {}
   end
-  if not global.Teleportation.player_settings[player.name] then
-    global.Teleportation.player_settings[player.name] = {}
-    global.Teleportation.player_settings[player.name].used_portal_on_tick = 1
-    global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 1
-    global.Teleportation.player_settings[player.name].beacons_list_current_page_num = 1
+  if not storage.Teleportation.player_settings[player.name] then
+    storage.Teleportation.player_settings[player.name] = {}
+    storage.Teleportation.player_settings[player.name].used_portal_on_tick = 1
+    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 1
+    storage.Teleportation.player_settings[player.name].beacons_list_current_page_num = 1
   end
 end
 
 --Tries to activate nearest beacon (on ctrl+y)
 function Teleportation_ActivateNearestBeacon(player)
   if Common_IsPlayerOk(player) then
-    local list = global.Teleportation.beacons
+    local list = storage.Teleportation.beacons
     Teleportation_InitializePlayerGlobals(player)
     local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, 3 --[[sort by distance from player]], player)
     if #list_sorted == 0 then
@@ -103,7 +103,7 @@ function Teleportation_ActivateNearestBeacon(player)
     for i, beacon in pairs(list_sorted) do
       -- We provide the sending_beacon and equipment_energy to ActivateBeacon so it won't need to do so every time.
       if Teleportation_ActivateBeacon(player, beacon.key, true, sending_beacon, equipment_energy, vehicle_energy, vehicle_mod) then
-        if global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
+        if storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
           --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
           Teleportation_UpdateMainWindow(player)
         end
@@ -284,11 +284,11 @@ function Teleportation_ActivatePortal(player, destination_position)
     playervehicle = nil -- If it exists but isn't valid just remove it
     vehicle_energy = -1 -- No vehicle so obviously no vehicle equipment
   end
-  if not global.Teleportation.player_settings[player.name].used_portal_on_tick then
-    global.Teleportation.player_settings[player.name].used_portal_on_tick = 0
+  if not storage.Teleportation.player_settings[player.name].used_portal_on_tick then
+    storage.Teleportation.player_settings[player.name].used_portal_on_tick = 0
   end
   -- Checks if there has been enough time since the last portal usage
-  local ticks_passed_since_last_use = game.tick - global.Teleportation.player_settings[player.name].used_portal_on_tick
+  local ticks_passed_since_last_use = game.tick - storage.Teleportation.player_settings[player.name].used_portal_on_tick
   if ticks_passed_since_last_use < cooldown_in_ticks_between_usages then
     if ticks_passed_since_last_use > 15 then
       player.print({"message-too-frequent-use-portal", cooldown_in_ticks_between_usages / 60})
@@ -308,7 +308,7 @@ function Teleportation_ActivatePortal(player, destination_position)
         if valid_position then
           Teleportation_BlockProjectiles(player)
           Teleportation_Teleport(player, player.surface, valid_position)
-          global.Teleportation.player_settings[player.name].used_portal_on_tick = game.tick
+          storage.Teleportation.player_settings[player.name].used_portal_on_tick = game.tick
           if vehicle_energy >= 0 then
             energy_required = Teleportation_DischargeVehicleEquipment(playervehicle, energy_required)
           end
@@ -416,7 +416,7 @@ function Teleportation_GetPlayerEquipmentChargeLevel(player)
   local charge_level = 0
   -- The player must exist, be valid, connected, and have a character in order to have armor.
   if player ~= nil and player.valid and player.connected and player.character then
-    local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
+    local armor_as_item_stack = player.character.get_inventory(defines.inventory.character_armor)[1]
     if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
       local equipment = armor_as_item_stack.grid.equipment
       local has_equipment = false
@@ -509,8 +509,11 @@ end
 
 --Destroys enemies' projectiles neighboring to the player to prevent them from homing behavior after player's teleportation.
 function Teleportation_BlockProjectiles(player)
+  -- Turning this off as I'm not sure it's necessary anymore - worm spit was changed a while ago.
+  if true then return end
   local radius = 30
   local area = {{x = player.position.x - radius, y = player.position.y - radius}, {x = player.position.x + radius, y = player.position.y + radius}}
+  -- The name would need to be updated.
   for i, entity in pairs(player.surface.find_entities_filtered{area = area, name="acid-projectile-purple"}) do
     entity.destroy()
   end
@@ -546,23 +549,23 @@ function Teleportation_RememberBeacon(entity)
   }
   local marker = entity.force.add_chart_tag(beacon.entity.surface, chart_tag)
   beacon.marker = marker
-  table.insert(global.Teleportation.beacons, beacon)
+  table.insert(storage.Teleportation.beacons, beacon)
   Teleportation_UpdateGui(beacon.entity.force)
 end
 
 --Removes specified beacon from global list and calls GUI update.
 function Teleportation_ForgetBeacon(entity)
   local key_to_forget = Common_CreateEntityKey(entity)
-  for i = #global.Teleportation.beacons, 1, -1 do
-    local beacon = global.Teleportation.beacons[i]
+  for i = #storage.Teleportation.beacons, 1, -1 do
+    local beacon = storage.Teleportation.beacons[i]
     if beacon.key == key_to_forget then
-      if global.Teleportation.beacons[i].energy_interface and global.Teleportation.beacons[i].energy_interface.valid then
-        global.Teleportation.beacons[i].energy_interface.destroy()
+      if storage.Teleportation.beacons[i].energy_interface and storage.Teleportation.beacons[i].energy_interface.valid then
+        storage.Teleportation.beacons[i].energy_interface.destroy()
       end
-      if global.Teleportation.beacons[i].marker and global.Teleportation.beacons[i].marker.valid then
-        global.Teleportation.beacons[i].marker.destroy()
+      if storage.Teleportation.beacons[i].marker and storage.Teleportation.beacons[i].marker.valid then
+        storage.Teleportation.beacons[i].marker.destroy()
       end
-      table.remove(global.Teleportation.beacons, i)
+      table.remove(storage.Teleportation.beacons, i)
       Teleportation_UpdateGui(entity.force)
       return
     end
@@ -573,9 +576,9 @@ end
 function Teleportation_CountBeacons(force_name)
   local count = 0
   if force_name == nil then
-    count = #global.Teleportation.beacons
+    count = #storage.Teleportation.beacons
   else
-    for i, beacon in pairs(global.Teleportation.beacons) do
+    for i, beacon in pairs(storage.Teleportation.beacons) do
       -- log(serpent.block(beacon))
       if beacon.entity.valid and beacon.entity.force.name == force_name then
         count = count + 1
@@ -602,9 +605,9 @@ function Teleportation_ReorderBeaconUp(beacon_key, force_name)
   local beacon_to_swap, beacon_to_swap_index = Common_GetBeaconByKey(beacon_key)
   if beacon_to_swap_index > 1 then
     for i = beacon_to_swap_index - 1, 1, -1 do
-      if global.Teleportation.beacons[i].entity.force.name == force_name or settings.global["Teleportation-all-beacons-for-all"].value then
-        global.Teleportation.beacons[beacon_to_swap_index] = global.Teleportation.beacons[i]
-        global.Teleportation.beacons[i] = beacon_to_swap
+      if storage.Teleportation.beacons[i].entity.force.name == force_name or settings.global["Teleportation-all-beacons-for-all"].value then
+        storage.Teleportation.beacons[beacon_to_swap_index] = storage.Teleportation.beacons[i]
+        storage.Teleportation.beacons[i] = beacon_to_swap
         return true
       end
     end
@@ -618,9 +621,9 @@ function Teleportation_ReorderBeaconDown(beacon_key, force_name)
   local beacons_count = Teleportation_CountBeacons()
   if beacon_to_swap_index ~= beacons_count then
     for i = beacon_to_swap_index + 1, beacons_count do
-      if global.Teleportation.beacons[i].entity.force.name == force_name or settings.global["Teleportation-all-beacons-for-all"].value then
-        global.Teleportation.beacons[beacon_to_swap_index] = global.Teleportation.beacons[i]
-        global.Teleportation.beacons[i] = beacon_to_swap
+      if storage.Teleportation.beacons[i].entity.force.name == force_name or settings.global["Teleportation-all-beacons-for-all"].value then
+        storage.Teleportation.beacons[beacon_to_swap_index] = storage.Teleportation.beacons[i]
+        storage.Teleportation.beacons[i] = beacon_to_swap
         return true
       end
     end
@@ -725,7 +728,7 @@ function Teleportation_GetListPage(player, list, page, page_size)
     current_page_num = page
   else
     current_page_num = total_pages_num
-    global.Teleportation.player_settings[player.name].beacons_list_current_page_num = current_page_num
+    storage.Teleportation.player_settings[player.name].beacons_list_current_page_num = current_page_num
   end
   local first_record_num_on_page = (current_page_num  - 1)* page_size + 1
   for i = first_record_num_on_page, first_record_num_on_page + page_size - 1, 1 do
@@ -746,32 +749,32 @@ function Teleportation_ProcessGuiClick(element)
     Teleportation_SwitchMainWindow(game.players[player_index])
   elseif gui_element.name == "teleportation_button_page_back" then -- < -button, prev.page
     Teleportation_InitializePlayerGlobals(player)
-    if global.Teleportation.player_settings[player.name].beacons_list_current_page_num > 1 then
-      global.Teleportation.player_settings[player.name].beacons_list_current_page_num = global.Teleportation.player_settings[player.name].beacons_list_current_page_num - 1
+    if storage.Teleportation.player_settings[player.name].beacons_list_current_page_num > 1 then
+      storage.Teleportation.player_settings[player.name].beacons_list_current_page_num = storage.Teleportation.player_settings[player.name].beacons_list_current_page_num - 1
       Teleportation_UpdateMainWindow(player)
     end
   elseif gui_element.name == "teleportation_button_page_forward" then -- > -button, next page
     Teleportation_InitializePlayerGlobals(player)
-    global.Teleportation.player_settings[player.name].beacons_list_current_page_num = global.Teleportation.player_settings[player.name].beacons_list_current_page_num + 1
+    storage.Teleportation.player_settings[player.name].beacons_list_current_page_num = storage.Teleportation.player_settings[player.name].beacons_list_current_page_num + 1
     Teleportation_UpdateMainWindow(player)
   elseif gui_element.name == "teleportation_button_sort_global" then -- Nonsorted button
     Teleportation_InitializePlayerGlobals(player)
-    global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 1
+    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 1
     Teleportation_UpdateMainWindow(player)
   elseif gui_element.name == "teleportation_button_sort_distance_from_player" then -- Sort by distance from player button
     Teleportation_InitializePlayerGlobals(player)
-    global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 3
+    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 3
     Teleportation_UpdateMainWindow(player)
   elseif gui_element.name == "teleportation_button_sort_distance_from_start" then  -- Sort by distance from start button
     Teleportation_InitializePlayerGlobals(player)
-    global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 2
+    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 2
     Teleportation_UpdateMainWindow(player)
   elseif gui_element.name == "teleportation_button_sort_alphabet" then  -- Alphabetical sort button
     Teleportation_InitializePlayerGlobals(player)
-    global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 4
+    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 4
     Teleportation_UpdateMainWindow(player)
   elseif gui_element.name == "teleportation_button_activate" then -- Teleport button
-      if Teleportation_ActivateBeacon(player, gui_element.parent.name) and global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
+      if Teleportation_ActivateBeacon(player, gui_element.parent.name) and storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
         --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
         Teleportation_UpdateMainWindow(player)
       end
@@ -881,16 +884,16 @@ function Teleportation_UpdateMainWindow(player)
           gui[gui_name].destroy()
         end
       end
-      local list = global.Teleportation.beacons
+      local list = storage.Teleportation.beacons
       Teleportation_InitializePlayerGlobals(player)
-      local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by, player)
-      local list_page, current_page_num, total_pages_num = Teleportation_GetListPage(player, list_sorted, global.Teleportation.player_settings[player.name].beacons_list_current_page_num, settings.get_player_settings(player)["Teleportation-page-size"].value)
+      local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by, player)
+      local list_page, current_page_num, total_pages_num = Teleportation_GetListPage(player, list_sorted, storage.Teleportation.player_settings[player.name].beacons_list_current_page_num, settings.get_player_settings(player)["Teleportation-page-size"].value)
       gui.teleportation_window_menu_paging.teleportation_paging.teleportation_label_page_number.caption = current_page_num .. "/" .. total_pages_num
       --Now let's add by one row for each beacon.
       for i, beacon in pairs(list_page) do
         if player.force.name == beacon.entity.force.name or settings.global["Teleportation-all-beacons-for-all"].value then
           Teleportation_InitializePlayerGlobals(player)
-          local sort_type = global.Teleportation.player_settings[player.name].beacons_list_is_sorted_by
+          local sort_type = storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by
           Teleportation_AddRow(gui, beacon, i, sort_type)
         end
       end
@@ -1055,14 +1058,14 @@ function Teleportation_Migrate()
     Teleportation_UpdateGui(force, true)
   end
   -- There used to be a version check here. It's gone now.
-  if game.active_mods["Teleportation_Redux"] then
+  if script.active_mods["Teleportation_Redux"] then
     -- Recollect all beacons
     log("Recollecting beacons...")
     Teleportation_RefreshBeaconsAndMakeTheirEntitiesUnoperable()
-    if global.Teleportation and global.Teleportation.beacons and #global.Teleportation.beacons > 0 then
+    if storage.Teleportation and storage.Teleportation.beacons and #storage.Teleportation.beacons > 0 then
       local basebuffer = settings.startup["Teleportation-beacon-storage"].value * 1000000
-      for i = #global.Teleportation.beacons, 1, -1 do
-        local beacon = global.Teleportation.beacons[i]
+      for i = #storage.Teleportation.beacons, 1, -1 do
+        local beacon = storage.Teleportation.beacons[i]
         if beacon.entity == nil or not beacon.entity.valid then -- Beacon isn't valid, clean up associated stuff.
           log("Removing invalid beacon: " .. serpent.block(beacon))
           -- If the beacon isn't valid, we need to remove it from our table and cleanup the map marker and accumulator
@@ -1073,7 +1076,7 @@ function Teleportation_Migrate()
             beacon.energy_interface.destroy()
           end
           -- We're working backwards along our list, so this is fine.
-          table.remove(global.Teleportation.beacons, i)
+          table.remove(storage.Teleportation.beacons, i)
         else
             -- This remakes the beacon marker, even if it's valid. I'm not sure why, I guess as a JIC catch all?
             if beacon.marker then

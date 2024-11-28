@@ -20,7 +20,7 @@ data:extend({
     name = "teleportation-beacon-electric-energy-interface",
     icon = "__base__/graphics/icons/accumulator.png",
     icon_size = 32,
-    flags = {"hidden"},
+    hidden = true,
     subgroup = "teleportation",
     order = "e[electric-energy-interface]-b[electric-energy-interface]",
     place_result = "teleportation-beacon-electric-energy-interface",
@@ -32,7 +32,7 @@ data:extend({
     localised_description = {"item-description.teleportation-equipment",settings.startup["Teleportation-equip-beacon"].value .. "MJ",settings.startup["Teleportation-equip-portal"].value .. "kJ"},
     icon = "__Teleportation_Redux__/graphics/Personal_Teleporter_item.png",
     icon_size = 32,
-    placed_as_equipment_result = "teleportation-equipment",
+    place_as_equipment_result = "teleportation-equipment",
     subgroup = "equipment",
     order = "g-a-a",
     stack_size= 5,
@@ -56,30 +56,34 @@ data:extend({
 	subgroup = "other",
 	order = "g-a-a",
     stack_size = 1,
-    alt_selection_color = {
-        b = 0,
-        g = 1,
-        r = 0
-    },
-    alt_selection_cursor_box_type = "copy",
-    alt_selection_mode = {
-        "blueprint"
-    },
+    hidden = true,
+    alt_select = {
+        border_color = {
+            b = 0,
+            g = 1,
+            r = 0
+        },
+        cursor_box_type = "copy",
+        mode = {
+            "blueprint"
+        },
+    },    
     flags = {
-        "hidden",
         "not-stackable",
         "spawnable",
         "only-in-cursor"
     },
-    selection_color = {
-        b = 255,
-        g = 255,
-        r = 255
+    select = {
+        border_color = {
+            b = 255,
+            g = 255,
+            r = 255
+        },
+        cursor_box_type = "copy",
+        mode = {
+            "any-tile"
+        }
     },
-    selection_cursor_box_type = "copy",
-    selection_mode = {
-        "any-tile"
-    }
   },
 })
 if settings.startup["Teleportation-telelogistics-enabled"].value then
@@ -101,15 +105,10 @@ end
 targeter_shortcut = {
       action = "spawn-item",
       associated_control_input = "teleportation-hotkey-jump-targeter",
-      icon = {
-        filename = "__Teleportation_Redux__/graphics/portal-32.png",
-        flags = {
-          "gui-icon"
-        },
-        priority = "extra-high-no-scale",
-        scale = 0.5,
-        size = 32
-      },
+      icon = "__Teleportation_Redux__/graphics/portal-32.png",
+      icon_size = 32,
+      small_icon = "__Teleportation_Redux__/graphics/portal-32.png",
+      small_icon_size = 32,
       item_to_spawn = "teleportation-targeter",
       localised_name = {
         "shortcut.make-teleportation-targeter"

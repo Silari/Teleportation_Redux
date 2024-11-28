@@ -49,8 +49,8 @@ end
 
 --Looks for beacon with specified key and returns the beacon and it's index in global list
 function Common_GetBeaconByKey(beacon_key)
-  if global.Teleportation ~= nil and global.Teleportation.beacons ~= nil then
-    for i, beacon in pairs(global.Teleportation.beacons) do
+  if storage.Teleportation ~= nil and storage.Teleportation.beacons ~= nil then
+    for i, beacon in pairs(storage.Teleportation.beacons) do
       if beacon.key == beacon_key then
         return beacon, i
       end
@@ -60,8 +60,8 @@ function Common_GetBeaconByKey(beacon_key)
 end
 
 function Common_GetTeleproviderByKey(provider_key)
-  if global.Telelogistics ~= nil and global.Telelogistics.teleproviders ~= nil then
-    for i, provider in pairs(global.Telelogistics.teleproviders) do
+  if storage.Telelogistics ~= nil and storage.Telelogistics.teleproviders ~= nil then
+    for i, provider in pairs(storage.Telelogistics.teleproviders) do
       if provider.key == provider_key then
         return provider, i
       end

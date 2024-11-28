@@ -10,7 +10,7 @@ data:extend({
                 recipe = "teleportation-beacon"
             }
         },
-        prerequisites = {"electric-energy-accumulators", "advanced-electronics"},
+        prerequisites = {"electric-energy-accumulators", "advanced-circuit"},
         unit = {
             count = 500,
             ingredients = {
@@ -32,7 +32,7 @@ data:extend({
 				recipe = "teleportation-equipment"
 			}
 		},
-		prerequisites = {"teleportation-tech", "fusion-reactor-equipment"},
+		prerequisites = {"teleportation-tech", "fission-reactor-equipment"},
 		unit =
 		{
 			count = 2000,
