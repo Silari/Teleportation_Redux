@@ -77,10 +77,11 @@ function Teleportation_ActivateNearestBeacon(player)
       player.print({"message-sender-and-destination-are-same"})
       return false
     end
+    local player_vehicle = player.vehicle or player.physical_vehicle
     -- Get the teleporter energy in the player's equipment and the player's vehicle's equipment.
     local equipment_energy = Teleportation_GetPlayerEquipmentChargeLevel(player)
     local vehicle_energy = Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
-    if player.vehicle and player.vehicle.valid and vehicle_energy == -1 then
+    if player_vehicle and player_vehicle.valid and vehicle_energy == -1 then
         --Player is in a valid vehicle but it doesn't have equipment - fail.
         player.print({"message-sitting-in-vehicle"})
         return false
@@ -93,7 +94,7 @@ function Teleportation_ActivateNearestBeacon(player)
     end
     -- Calculate the modifier to energy costs due to being in a vehicle
     local vehicle_mod = 1 -- Default is no modifier
-    if vehicle_energy >= 0 then vehicle_mod = Teleportation_VehicleModifier(player.vehicle) end
+    if vehicle_energy >= 0 then vehicle_mod = Teleportation_VehicleModifier(player_vehicle) end
     -- Not standing on a beacon and equipment isn't charged enough - fail
     if (not sending_beacon) and ((equipment_energy + vehicle_energy) < (required_energy_eq * vehicle_mod)) then
       failure_message = {"message-no-power-pt", math.floor(math.max(equipment_energy + vehicle_energy,0) * 100 / (required_energy_eq * vehicle_mod))}
@@ -126,9 +127,10 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
     sending_beacon = Teleportation_GetSendingBeaconUnderPlayer(player, required_energy_beacon)
   end
   local failure_message
-  local playervehicle = player.vehicle
+  --This gets the player's vehicle - physical vehicle is needed to work in map mode.
+  local player_vehicle = player.vehicle or player.physical_vehicle
   -- Checks if the player is in a vehicle.
-  if playervehicle and playervehicle.valid then
+  if player_vehicle and player_vehicle.valid then
       -- The vehicle MUST have teleport equipment installed to teleport. Player equipment alone isn't enough.
       if vehicle_energy == nil then
         vehicle_energy = Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
@@ -141,13 +143,13 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
           return false
       else
           if vehicle_mod == nil then
-            vehicle_mod = Teleportation_VehicleModifier(playervehicle)
+            vehicle_mod = Teleportation_VehicleModifier(player_vehicle)
           end
           required_energy_eq = required_energy_eq * vehicle_mod
           required_energy_beacon = required_energy_beacon * vehicle_mod
       end
   else
-    playervehicle = nil -- If it exists but isn't valid just remove it
+    player_vehicle = nil -- If it exists but isn't valid just remove it
     vehicle_energy = -1 -- Obviously if we don't have a vehicle it has no energy
   end
   -- If the player is standing on a beacon, try to use it to send the player. No equipment needed/charge used.
@@ -195,7 +197,7 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
         Teleportation_BlockProjectiles(player)
         Teleportation_Teleport(player, receiving_beacon.entity.surface.name, receiving_beacon.entity.position)
         if vehicle_energy >= 0 then
-            remainenergy = Teleportation_DischargeVehicleEquipment(playervehicle, remainenergy)
+            remainenergy = Teleportation_DischargeVehicleEquipment(player_vehicle, remainenergy)
         end
         if remainenergy then
             remainenergy = Teleportation_DischargePlayerEquipment(player, remainenergy)
@@ -267,21 +269,22 @@ end
 function Teleportation_ActivatePortal(player, destination_position)
   local cooldown_in_ticks_between_usages = 15
   Teleportation_InitializePlayerGlobals(player)
-  local playervehicle = player.vehicle
+  --This gets the player's vehicle - physical vehicle is needed to work in map mode.
+  local player_vehicle = player.vehicle or player.physical_vehicle
   local vehicle_energy = 0
   local vehicle_mod = 1 -- No modifier to teleport cost
   -- Checks if the player is in a vehicle, and if that vehicle has teleportation equipment.
-  if playervehicle and playervehicle.valid then
+  if player_vehicle and player_vehicle.valid then
       -- The vehicle MUST have teleport equipment installed to teleport. Player equipment alone isn't enough.
       vehicle_energy = Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
       if vehicle_energy == -1 then
           player.print({"message-sitting-in-vehicle"})
           return false
       else
-          vehicle_mod = Teleportation_VehicleModifier(playervehicle)
+          vehicle_mod = Teleportation_VehicleModifier(player_vehicle)
       end
   else
-    playervehicle = nil -- If it exists but isn't valid just remove it
+    player_vehicle = nil -- If it exists but isn't valid just remove it
     vehicle_energy = -1 -- No vehicle so obviously no vehicle equipment
   end
   if not storage.Teleportation.player_settings[player.name].used_portal_on_tick then
@@ -310,7 +313,7 @@ function Teleportation_ActivatePortal(player, destination_position)
           Teleportation_Teleport(player, player.surface, valid_position)
           storage.Teleportation.player_settings[player.name].used_portal_on_tick = game.tick
           if vehicle_energy >= 0 then
-            energy_required = Teleportation_DischargeVehicleEquipment(playervehicle, energy_required)
+            energy_required = Teleportation_DischargeVehicleEquipment(player_vehicle, energy_required)
           end
           energy_required = Teleportation_DischargePlayerEquipment(player, energy_required)
           if energy_required > 0 then
@@ -339,13 +342,38 @@ function Teleportation_VehicleModifier(vehicle)
     -- If the vehicle doesn't have that type of inventory it uses length of empty table - 0
     -- Note that car_trunk and spider_trunk are currently the same number, but may not be in a future version.
     local vehicle_mod = 1
-    local invgridmod = (#(vehicle.get_inventory(defines.inventory.car_trunk) or vehicle.get_inventory(defines.inventory.spider_trunk) or {})) * 0.01
-    --player.print("Invgrid1: " .. invgridmod)
-    local invgridmod = invgridmod + vehicle.grid.width * vehicle.grid.height * 0.01
-    --player.print("Invgrid3: " .. invgridmod)
+    local inventory = vehicle.get_inventory(defines.inventory.car_trunk) or vehicle.get_inventory(defines.inventory.spider_trunk)
+    local inventory_size = 0
+    if inventory then
+        -- Count inventory slots in the vehicle, counting empty stacks for half. Empty filtered or barred slots count.
+        inventory_size = #inventory - ((inventory.count_empty_stacks(true, true)) / 2)
+    end
+    --game.print(inventory_size)
+    local invgridmod = (#(vehicle.get_inventory(defines.inventory.car_trunk) or vehicle.get_inventory(defines.inventory.spider_trunk) or {}))
+    invgridmod = inventory_size * 0.01
+    --game.print("Invgrid1: " .. invgridmod)
+    -- We know this vehicle has a grid or it wouldn't have made it this far in the teleportation process.
+    local vehgridsize = vehicle.grid.width * vehicle.grid.height
+    local usedgrid = 0
+    for _, equip in pairs(vehicle.grid.equipment) do
+        local thisproto = equip.prototype
+        if thisproto then
+            if thisproto.shape.points then
+                -- Equipment may be declared as a series of points, rather than just width+height.
+                -- In this case, the length of the array is how many spaces it takes up.
+                usedgrid = usedgrid + #thisproto.shape.points
+            else
+                usedgrid = usedgrid + thisproto.shape.width * thisproto.shape.height
+            end
+        end
+    end
+    -- Modify the energy usage by 0.01 per equipment grid space, counting empty spaces for half.
+    --game.print("eqpgridsize: " .. vehgridsize .. " Used: " .. usedgrid)
+    local invgridmod = invgridmod + (vehgridsize - ((vehgridsize-usedgrid)/2)) * 0.01
+    --game.print("Invgrid2: " .. invgridmod)
     -- Note this uses an empty table if the vehicle has nil guns
     vehicle_mod = vehicle_mod + dictlength(vehicle.prototype.guns) * 0.1
-    --player.print("Invgridmod: " .. invgridmod .. " : vehicle mod: " .. vehicle_mod)
+    --game.print("Invgridmod: " .. invgridmod .. " : vehicle mod: " .. vehicle_mod)
     vehicle_mod = vehicle_mod + invgridmod
     --game.print("Final vehicle mod: " .. vehicle_mod)
     return vehicle_mod
@@ -373,7 +401,8 @@ end
 -- Validates player and equipment grid then calls DischargeEquipment
 function Teleportation_DischargePlayerEquipment(player, energy_to_discharge)
   if player ~= nil and player.valid and player.connected and player.character then
-    local armor_as_item_stack = player.get_inventory(defines.inventory.character_armor)[1]
+    --OK we need to SPECIFICALLY get the inventory from the character, or this fails in map view after 2.0 update.
+    local armor_as_item_stack = player.character.get_inventory(defines.inventory.character_armor)[1]
     if armor_as_item_stack and armor_as_item_stack.valid and armor_as_item_stack.valid_for_read and armor_as_item_stack.grid and armor_as_item_stack.grid.valid then
       return Teleportation_DischargeEquipment(armor_as_item_stack.grid, energy_to_discharge)
     end
@@ -440,9 +469,12 @@ end
 function Teleportation_GetPlayerVehicleEquipmentChargeLevel(player)
   local charge_level = 0
   -- Check if the given player is valid and is in a valid vehicle
-  if player ~= nil and player.valid and player.connected and player.vehicle and player.vehicle.valid then
+  if player == nil or not player.valid then return end -- Not a valid player, exit.
+  --This gets the player's vehicle - physical vehicle is needed to work in map mode.
+  local player_vehicle = player.vehicle or player.physical_vehicle
+  if player.connected and player_vehicle and player_vehicle.valid then
     --player.print("Found player vehicle")
-    local vehicle_grid = player.vehicle.grid
+    local vehicle_grid = player_vehicle.grid
     if vehicle_grid and vehicle_grid.valid then -- Vehicle has a grid that is also valid
       --player.print("Vehicle has grid")
       local equipment = vehicle_grid.equipment
@@ -475,8 +507,10 @@ function Teleportation_CheckDestinationPosition(position, player)
     return position
   end
   local entname = '' -- Holds the entity name we need to check for collision.
-  if player.vehicle and player.vehicle.valid then -- Player is in a vehicle
-    entname = player.vehicle.name
+  --This gets the player's vehicle - physical vehicle is needed to work in map mode.
+  local player_vehicle = player.vehicle or player.physical_vehicle
+  if player_vehicle and player_vehicle.valid then -- Player is in a vehicle
+    entname = player_vehicle.name
   elseif player.character == nil then
     return position -- Player has no character and thus no collision, so just use the position.
   else -- Otherwise we just use the character.
@@ -499,9 +533,11 @@ end
 --Teleports player/vehicle to the defined position on the defined surface
 function Teleportation_Teleport(player, surface_name, destination_position)
   surface_name = surface_name or "nauvis"
+  --This gets the player's vehicle - physical vehicle is needed to work in map mode.
+  local player_vehicle = player.vehicle or player.physical_vehicle
   -- If the player is in a vehicle, teleport that, otherwise teleport the player.
-  if player.vehicle and player.vehicle.valid then
-    player.vehicle.teleport({destination_position.x, destination_position.y+0.1}, surface_name, true)
+  if player_vehicle and player_vehicle.valid then
+    player_vehicle.teleport({destination_position.x, destination_position.y+0.1}, surface_name, true)
   else
     player.teleport({destination_position.x, destination_position.y+0.1}, surface_name, true)
   end

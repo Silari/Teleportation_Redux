@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.2
+  Bugfixes:
+    - Bug fix for attempting to jump in map view not recognizing the player is in a vehicle, causing several issues.
+      - This should include jumping via the GUI, via the Ctrl+Y hotkey, and via the teleporter tool.
+  Balancing:
+    - Vehicle teleportation cost modifier includes HALF of empty inventory or grid slots, to make teleporting cheaper in an empty vehicle. Gun slots will always add 10%. This should make large inventory or grid sizes from quality/modded vehicles less troublesome for teleportation unless they are actually being used.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.1
   Bugfixes:
     - Theoretical fix for telelogistics removing quality information from teleported items.
