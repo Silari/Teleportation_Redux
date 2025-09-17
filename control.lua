@@ -96,7 +96,7 @@ script.on_event(defines.events.on_research_reversed, upgradebeacons)
 
 --When beacon get placed by entity of any force, all players of this force should get their GUI updated.
 --When teleprovider get placed, it should be remembered.
-script.on_event({defines.events.on_built_entity, defines.events.on_robot_built_entity}, function(event) 
+script.on_event({defines.events.on_built_entity, defines.events.on_robot_built_entity, defines.events.script_raised_revive, defines.events.on_space_platform_built_entity}, function(event) 
   if event.entity.name == "teleportation-beacon" then
     Teleportation_RememberBeacon(event.entity)
   elseif event.entity.name == "teleportation-teleprovider" then

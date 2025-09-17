@@ -1,4 +1,8 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.3
+  Bugfixes:
+    - Added script_raised_revive and on_space_platform_built_entity events to event list to watch for created beacons, so they can be added to the list of beacons.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.2
   Bugfixes:
     - Bug fix for attempting to jump in map view not recognizing the player is in a vehicle, causing several issues.
