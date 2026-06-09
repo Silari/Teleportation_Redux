@@ -1,4 +1,8 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.4
+  Modding:
+    - Added flag to allow beacons to be built on Space Exploration platforms.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.3
   Bugfixes:
     - Added script_raised_revive and on_space_platform_built_entity events to event list to watch for created beacons, so they can be added to the list of beacons.

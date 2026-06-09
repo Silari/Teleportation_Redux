@@ -102,8 +102,7 @@ data:extend({
 		open_sound = { filename = "__base__/sound/machine-open.ogg", volume = 0.85 },
 		close_sound = { filename = "__base__/sound/machine-close.ogg", volume = 0.75 },
 		vehicle_impact_sound = { filename = "__base__/sound/car-metal-impact.ogg", volume = 0.65 },
-		resistances =
-		{
+		resistances = {
 			{
 				type = "fire",
 				percent = 90
@@ -114,14 +113,14 @@ data:extend({
         selection_box = {{-2, -2}, {2, 2}},
         render_layer = decorative,
 		inventory_size = 10,
-        picture =
-        {
+        picture = {
           filename = "__Teleportation_Redux__/graphics/tiers/orange/spritesheet.png",
           priority = "high",
           width = 128,
           height = 128,
           shift = {0.28, 0.2}
-        }
+        },
+        se_allow_in_space = true
 	},
   {
     type = "electric-energy-interface",
@@ -139,16 +138,14 @@ data:extend({
     collision_mask = {layers={water_tile=true, item=true, object=true}},
     selection_box = {{0, 0}, {0, 0}},
     render_layer = decorative,
-    energy_source =
-    {
+    energy_source = {
       type = "electric",
       buffer_capacity = settings.startup["Teleportation-beacon-storage"].value .. "MJ",
       usage_priority = "secondary-input",
       input_flow_limit = settings.startup["Teleportation-beacon-charge"].value .. "MW",
       output_flow_limit = "0W"
     },
-    charge_animation =
-    {
+    charge_animation = {
       filename = "__Teleportation_Redux__/graphics/tiers/orange/spritesheet.png",
       width = 128,
       height = 128,
@@ -159,8 +156,7 @@ data:extend({
     },
     charge_cooldown = 30,
     charge_light = {intensity = 0.3, size = 7},
-    discharge_animation =
-    {
+    discharge_animation = {
       filename = "__PersonalTeleporter__/graphics/tiers/orange/spritesheet.png",
       width = 128,
       height = 128,
@@ -171,6 +167,7 @@ data:extend({
     },
     discharge_cooldown = 60,
     discharge_light = {intensity = 0.7, size = 7},
+    se_allow_in_space = true
   },
 })
 
