@@ -10,13 +10,36 @@ data:extend({
                 recipe = "teleportation-beacon"
             }
         },
-        prerequisites = {"electric-energy-accumulators", "advanced-circuit"},
+        prerequisites = {"electric-energy-accumulators", "space-science-pack"},
         unit = {
             count = 500,
             ingredients = {
                 {"automation-science-pack", 1},
                 {"logistic-science-pack", 1},
-                {"chemical-science-pack", 1}
+                {"chemical-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1},
+            },
+            time = 60
+        }
+    },
+    {
+        type = "technology",
+        name = "teleportation-space",
+        icon = "__Teleportation_Redux__/graphics/space_teleporter.png",
+        icon_size = 128,
+        effects = {},
+        prerequisites = {"teleportation-tech"},
+        unit = {
+            count = 1000,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1},
+                {"chemical-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1},
+                {"metallurgic-science-pack", 1},
+                {"electromagnetic-science-pack", 1}
             },
             time = 60
         }
@@ -32,7 +55,7 @@ data:extend({
 				recipe = "teleportation-equipment"
 			}
 		},
-		prerequisites = {"teleportation-tech", "fission-reactor-equipment"},
+		prerequisites = {"teleportation-tech", "fusion-reactor-equipment"},
 		unit =
 		{
 			count = 2000,
@@ -40,7 +63,11 @@ data:extend({
 				{"automation-science-pack", 1},
 				{"logistic-science-pack", 1},
 				{"chemical-science-pack", 1},
-				{"utility-science-pack", 1}
+				{"utility-science-pack", 1},
+                {"space-science-pack", 1},
+                {"metallurgic-science-pack", 1},
+                {"electromagnetic-science-pack", 1},
+                {"cryogenic-science-pack", 1}
 			},
 			time = 15
 		}
@@ -67,7 +94,9 @@ data:extend({
             ingredients = {
                 {"automation-science-pack", 1},
                 {"logistic-science-pack", 1},
-                {"chemical-science-pack", 1}
+                {"chemical-science-pack", 1},
+				{"utility-science-pack", 1},
+                {"space-science-pack", 1}
             },
             time = 60
         },

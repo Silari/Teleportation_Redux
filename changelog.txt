@@ -1,9 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+  Features:
+    - New GUI featuring real-time camera previews and multi-surface filtering from https://mods.factorio.com/mod/KhalcTeleport
+    - Locked interplanetary teleportation behind a new tech
+  Changes:
+    - Increased costs
+---------------------------------------------------------------------------------------------------
 Version: 2.0.4
   Modding:
     - Added flag to allow beacons to be built on Space Exploration platforms.
 ---------------------------------------------------------------------------------------------------
-Version: 2.0.3
+Version: 2.0.3gs
   Bugfixes:
     - Added script_raised_revive and on_space_platform_built_entity events to event list to watch for created beacons, so they can be added to the list of beacons.
 ---------------------------------------------------------------------------------------------------

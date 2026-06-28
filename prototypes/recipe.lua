@@ -22,7 +22,7 @@ data:extend({
 			{name="speed-module", amount=100,type="item"},
 			{name="plastic-bar", amount=100,type="item"},
 			{name="copper-cable", amount=50,type="item"},
-			{name="fission-reactor-equipment", amount=15,type="item"}
+			{name="fusion-reactor-equipment", amount=1,type="item"}
 		},
 		results = {{name="teleportation-equipment",amount=1,type="item"}},
 	},
