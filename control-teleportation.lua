@@ -855,22 +855,10 @@ function Teleportation_UpdateGui(force, force_update)
   local number_of_beacons_belonging_to_force = Teleportation_CountBeacons(force.name)
   for i, player in pairs(force.players) do
     Teleportation_InitializePlayerGlobals(player)
-    Teleportation_HideMainButton(player)
     if number_of_beacons_belonging_to_force == 0 then
       Teleportation_HideMainWindow(player)
     else
       Teleportation_UpdateMainWindow(player)
-    end
-  end
-end
-
-
---Hides mod's toolbar button for player.
-function Teleportation_HideMainButton(player)
-  if player ~= nil and player.valid then
-    local gui = player.gui.top
-    if gui.teleportation_main_button then
-      gui.teleportation_main_button.destroy()
     end
   end
 end
@@ -1282,6 +1270,16 @@ function Teleportation_CloseBeaconReminder(player)
   end
 end
 
+--Hides mod's toolbar button for player.
+function Teleportation_HideMainButton(player)
+    if player ~= nil and player.valid then
+    local gui = player.gui.top
+    if gui.teleportation_main_button then
+      gui.teleportation_main_button.destroy()
+    end
+  end
+end
+
 --===================================================================--
 --############################ MIGRATIONS ###########################--
 --===================================================================--
@@ -1290,9 +1288,7 @@ function Teleportation_Migrate()
     Teleportation_UpdateGui(force, true)
   end
   for i, player in pairs(game.players) do
-    if player.gui.top.teleportation_main_button then
-      player.gui.top.teleportation_main_button.destroy()
-    end
+    Teleportation_HideMainButton(player)
   end
   -- There used to be a version check here. It's gone now.
   if script.active_mods["Teleportation_Redux"] then
