@@ -5,6 +5,12 @@ Version: 2.1.0
     - Locked interplanetary teleportation behind a new tech
   Changes:
     - Increased costs
+  Bugfixes:
+    - Fixed render_layer on the beacon and its electric-energy-interface companion: it was set to
+      the bare identifier `decorative` instead of the string "decorative", which silently evaluated
+      to nil and dropped the field.
+  Modding:
+    - Updated to Factorio 2.1.
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.4
   Modding:

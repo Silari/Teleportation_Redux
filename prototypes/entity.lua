@@ -111,7 +111,7 @@ data:extend({
         collision_box = {{-2, -2}, {1.9,1.9}},
         collision_mask = {layers={water_tile=true, item=true, object=true}},
         selection_box = {{-2, -2}, {2, 2}},
-        render_layer = decorative,
+        render_layer = "decorative",
 		inventory_size = 10,
         picture = {
           filename = "__Teleportation_Redux__/graphics/tiers/orange/spritesheet.png",
@@ -137,7 +137,7 @@ data:extend({
     collision_box = {{-2, -2}, {2,2}},
     collision_mask = {layers={water_tile=true, item=true, object=true}},
     selection_box = {{0, 0}, {0, 0}},
-    render_layer = decorative,
+    render_layer = "decorative",
     energy_source = {
       type = "electric",
       buffer_capacity = settings.startup["Teleportation-beacon-storage"].value .. "MJ",
