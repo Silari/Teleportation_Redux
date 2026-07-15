@@ -565,13 +565,13 @@ function Teleportation_RememberBeacon(entity)
   if not entity.valid then return end
   Teleportation_InitializeGeneralGlobals()
   entity.operable = false
-  entity.active = false
+  entity.disabled_by_script = true
   local beacon = {}
   beacon.key = Common_CreateEntityKey(entity)
   beacon.name = Common_CreateEntityName(entity)
   beacon.entity = entity
   local energy_interface = entity.surface.create_entity({name = "teleportation-beacon-electric-energy-interface", position = entity.position, force = entity.force.name})
-  energy_interface.minable = false
+  energy_interface.minable_flag = false
   energy_interface.destructible = false
   -- CHANGE BUFFER SIZE HERE
   energy_interface.electric_buffer_size = energy_interface.electric_buffer_size * (1 + GetBeaconBonus(entity.force))
@@ -1150,7 +1150,7 @@ function Teleportation_RefreshBeaconsAndMakeTheirEntitiesUnoperable()
     for bi, beacon_entity in pairs(beacons_entities_on_surface) do
       --table.insert(beacons_entities, beacon_entity)
       beacon_entity.operable = false
-      beacon_entity.active = false
+      beacon_entity.disabled_by_script = true
       local beacon_key = Common_CreateEntityKey(beacon_entity)
       local beacon_from_list = Common_GetBeaconByKey(beacon_key)
       if beacon_from_list then

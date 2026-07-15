@@ -1,4 +1,8 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.1
+  Bugfixes:
+    - Fixed error when mod configuration changes due to attempt to set .active.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.4
   Modding:
     - Added flag to allow beacons to be built on Space Exploration platforms.
