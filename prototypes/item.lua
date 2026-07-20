@@ -65,7 +65,7 @@ data:extend({
         },
         cursor_box_type = "copy",
         mode = {
-            "blueprint"
+            "any-tile"
         },
     },    
     flags = {

@@ -1,4 +1,8 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.1
+  Bugfixes:
+    - Fixed error when mod configuration changes due to attempt to set .active.
+---------------------------------------------------------------------------------------------------
 Version: 2.1.0
   Features:
     - New GUI featuring real-time camera previews and multi-surface filtering from https://mods.factorio.com/mod/KhalcTeleport
