@@ -119,3 +119,17 @@ targeter_shortcut = {
       type = "shortcut"
 }
 data:extend({targeter_shortcut})
+
+local main_window_shortcut = {
+  type = "shortcut",
+  name = "teleportation-main-shortcut",
+  action = "lua", -- This tells Factorio to trigger a code event when clicked
+  icon = "__Teleportation_Redux__/graphics/teleporter_icon.png", -- Path to your icon
+  icon_size = 128,
+  small_icon = "__Teleportation_Redux__/graphics/teleporter_icon.png",
+  small_icon_size = 128,
+  localised_name = {"shortcut.teleportation-main"},
+  order = "o[other]-t[teleportation-main]"
+}
+
+data:extend({main_window_shortcut})

@@ -16,19 +16,26 @@
     config = {}; dictionary
       contents of Teleportation.config see in config.lua
 ]]
-
+local mod_gui = require("mod-gui")
 --===================================================================--
 --########################## EVENT HANDLERS #########################--
 --===================================================================--
 
 script.on_event("teleportation-hotkey-main-window", function(event)
-  local player_index = event.player_index
-  Teleportation_SwitchMainWindow(game.players[player_index])
+  local player = game.players[event.player_index]
+  Teleportation_SwitchMainWindow(player)
+end)
+
+script.on_event(defines.events.on_lua_shortcut, function(event)
+  if event.prototype_name == "teleportation-main-shortcut" then
+    local player = game.players[event.player_index]
+    Teleportation_SwitchMainWindow(player)
+  end
 end)
 
 script.on_event("teleportation-hotkey-activate-closest-beacon", function(event)
-  local player_index = event.player_index
-  Teleportation_ActivateNearestBeacon(game.players[player_index])
+  local player = game.players[event.player_index]
+  Teleportation_ActivateNearestBeacon(player)
 end)
 
 --===================================================================--
@@ -56,7 +63,18 @@ function Teleportation_InitializePlayerGlobals(player)
     storage.Teleportation.player_settings[player.name].used_portal_on_tick = 1
     storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 1
     storage.Teleportation.player_settings[player.name].beacons_list_current_page_num = 1
+    storage.Teleportation.player_settings[player.name].filter = nil
+    storage.Teleportation.player_settings[player.name].search = ""
+    storage.Teleportation.player_settings[player.name].preview_is_minimap = false
+    storage.Teleportation.player_settings[player.name].preview_zoom_camera = 0.1
+    storage.Teleportation.player_settings[player.name].preview_zoom_minimap = 0.5
   end
+  -- Backfill fields added by later mod versions for settings tables created before they existed.
+  local s = storage.Teleportation.player_settings[player.name]
+  if s.search == nil then s.search = "" end
+  if s.preview_is_minimap == nil then s.preview_is_minimap = false end
+  if s.preview_zoom_camera == nil then s.preview_zoom_camera = 0.1 end
+  if s.preview_zoom_minimap == nil then s.preview_zoom_minimap = 0.5 end
 end
 
 --Tries to activate nearest beacon (on ctrl+y)
@@ -123,6 +141,15 @@ function Teleportation_ActivateBeacon(player, beacon_key, silent_mode, sending_b
   local required_energy_eq = Teleportation.config.energy_in_equipment_to_use_beacon
   local required_energy_beacon = Teleportation.config.energy_in_beacon_to_activate
   local beacon = Common_GetBeaconByKey(beacon_key)
+  if beacon and beacon.entity and beacon.entity.valid and beacon.entity.surface.name ~= player.surface.name then
+    local tech = player.force.technologies["teleportation-space"]
+    if not tech or not tech.researched then
+      if not silent_mode then
+        player.print({"message-no-space-teleport"})
+      end
+      return false
+    end
+  end
   if sending_beacon == nil then
     sending_beacon = Teleportation_GetSendingBeaconUnderPlayer(player, required_energy_beacon)
   end
@@ -781,54 +808,44 @@ function Teleportation_ProcessGuiClick(element)
   local gui_element = element
   local player_index = element.player_index
   local player = game.players[player_index]
-  if gui_element.name == "teleportation_main_button" then -- Main mod's button
-    Teleportation_SwitchMainWindow(game.players[player_index])
-  elseif gui_element.name == "teleportation_button_page_back" then -- < -button, prev.page
+  local name = gui_element.name
+
+  -- if name == "teleportation_main_button" then -- Toolbar button: toggles the beacon list
+  --   Teleportation_SwitchMainWindow(player)
+
+  -- else
+    if name == "teleportation_button_close_main" then -- Title bar close button
+    Teleportation_HideMainWindow(player)
+
+  elseif name == "teleportation_button_open_settings" then -- Title bar preview-settings button
+    Teleportation_ToggleSettingsWindow(player)
+
+  elseif name == "teleportation_button_filter_all" then -- "All" filter button
     Teleportation_InitializePlayerGlobals(player)
-    if storage.Teleportation.player_settings[player.name].beacons_list_current_page_num > 1 then
-      storage.Teleportation.player_settings[player.name].beacons_list_current_page_num = storage.Teleportation.player_settings[player.name].beacons_list_current_page_num - 1
+    storage.Teleportation.player_settings[player.name].filter = nil
+    Teleportation_RefreshBeaconsList(player)
+
+  elseif name == "teleportation_button_filter_platforms" then -- "Platforms" filter button
+    Teleportation_InitializePlayerGlobals(player)
+    storage.Teleportation.player_settings[player.name].filter = "platforms_group"
+    Teleportation_RefreshBeaconsList(player)
+
+  elseif name:sub(1, #"teleportation_button_filter_surf_") == "teleportation_button_filter_surf_" then -- Per-surface filter button
+    Teleportation_InitializePlayerGlobals(player)
+    storage.Teleportation.player_settings[player.name].filter = tonumber(name:sub(#"teleportation_button_filter_surf_" + 1))
+    Teleportation_RefreshBeaconsList(player)
+
+  elseif name:sub(1, #"teleportation_button_activate_") == "teleportation_button_activate_" then -- Per-row Teleport button
+    local beacon_key = name:sub(#"teleportation_button_activate_" + 1)
+    if Teleportation_ActivateBeacon(player, beacon_key) and storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
+      --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
       Teleportation_UpdateMainWindow(player)
     end
-  elseif gui_element.name == "teleportation_button_page_forward" then -- > -button, next page
-    Teleportation_InitializePlayerGlobals(player)
-    storage.Teleportation.player_settings[player.name].beacons_list_current_page_num = storage.Teleportation.player_settings[player.name].beacons_list_current_page_num + 1
-    Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_global" then -- Nonsorted button
-    Teleportation_InitializePlayerGlobals(player)
-    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 1
-    Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_distance_from_player" then -- Sort by distance from player button
-    Teleportation_InitializePlayerGlobals(player)
-    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 3
-    Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_distance_from_start" then  -- Sort by distance from start button
-    Teleportation_InitializePlayerGlobals(player)
-    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 2
-    Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_sort_alphabet" then  -- Alphabetical sort button
-    Teleportation_InitializePlayerGlobals(player)
-    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = 4
-    Teleportation_UpdateMainWindow(player)
-  elseif gui_element.name == "teleportation_button_activate" then -- Teleport button
+
+  elseif gui_element.name == "teleportation_button_activate" then -- Kept for the beacon-reminder window, which still uses this static name
       if Teleportation_ActivateBeacon(player, gui_element.parent.name) and storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by == 3 then
-        --If the player successfully teleported, update the GUI to resort beacons IF they're sorting by closest to player.
         Teleportation_UpdateMainWindow(player)
       end
-  elseif gui_element.name == "teleportation_button_order_up" then         -- < -button (move up)
-    if Teleportation_ReorderBeaconUp(gui_element.parent.name, player.force.name) then
-      Teleportation_UpdateMainWindow(player)
-    end
-  elseif gui_element.name == "teleportation_button_order_down" then       -- > -button (move down)
-    if Teleportation_ReorderBeaconDown(gui_element.parent.name, player.force.name) then
-      Teleportation_UpdateMainWindow(player)
-    end
-  elseif gui_element.name == "teleportation_button_rename" then
-    Teleportation_OpenRenameWindow(player, gui_element.parent.name)
-  elseif gui_element.name == "teleportation_rename_window_button_cancel" then
-    Teleportation_CloseRenameWindow(player)
-  elseif gui_element.name == "teleportation_rename_window_button_ok" then
-    Teleportation_SaveNewBeaconsName(player, gui_element.parent.name)
-    Teleportation_UpdateGui(player.force)
   end
 end
 
@@ -838,111 +855,256 @@ function Teleportation_UpdateGui(force, force_update)
   local number_of_beacons_belonging_to_force = Teleportation_CountBeacons(force.name)
   for i, player in pairs(force.players) do
     Teleportation_InitializePlayerGlobals(player)
-    if force_update then
-      Teleportation_HideMainButton(player)
-      Teleportation_HideMainWindow(player)
-    end
     if number_of_beacons_belonging_to_force == 0 then
-      Teleportation_HideMainButton(player)
       Teleportation_HideMainWindow(player)
     else
-      Teleportation_ShowMainButton(player)
       Teleportation_UpdateMainWindow(player)
     end
   end
 end
 
---Shows mod's main button in player's GUI.
-function Teleportation_ShowMainButton(player)
-  if player ~= nil and player.valid then
-    local gui = player.gui.top
-    if not gui.teleportation_main_button then
-      local button = gui.add({type="button", name="teleportation_main_button", style = "teleportation_main_button_style"})
-      button.tooltip = {"tooltip-button-main"}
-    end
-  end
+--Capitalizes the first letter of a string (used for surface/planet display names).
+function Teleportation_Capitalize(str)
+  if not str then return "Unknown" end
+  return (str:gsub("^%l", string.upper))
 end
 
---Hides mod's main button for player.
-function Teleportation_HideMainButton(player)
-  if player ~= nil and player.valid then
-    local gui = player.gui.top
-    if gui.teleportation_main_button then
-      gui.teleportation_main_button.destroy()
+--Returns true if the given surface is a space platform, used to group platforms under one filter button.
+function Teleportation_IsPlatformSurface(surface)
+  return surface ~= nil and surface.valid and surface.platform ~= nil
+end
+
+--Checks whether a beacon matches the player's currently selected filter (All / Platforms / specific surface).
+function Teleportation_BeaconMatchesFilter(beacon, player)
+  local filter = storage.Teleportation.player_settings[player.name].filter
+  if filter == nil then return true end
+  local surface = beacon.entity.surface
+  if filter == "platforms_group" then
+    return Teleportation_IsPlatformSurface(surface)
+  end
+  return surface.index == filter
+end
+
+--Checks whether a beacon's name matches the player's current search text.
+function Teleportation_BeaconMatchesSearch(beacon, player)
+  local query = (storage.Teleportation.player_settings[player.name].search or ""):lower()
+  if query == "" then return true end
+  return beacon.name:lower():find(query, 1, true) ~= nil
+end
+
+--Formats a beacon's stored energy as a "x MJ / y MJ" label.
+function Teleportation_FormatEnergyLabel(beacon)
+  if not Common_IsEntityOk(beacon.energy_interface) then return "" end
+  local cur = math.floor(beacon.energy_interface.energy / 1000000)
+  local max = math.floor(beacon.energy_interface.electric_buffer_size / 1000000)
+  return cur .. "MJ / " .. max .. "MJ"
+end
+
+--Clears and rebuilds the row of filter buttons (Platforms + one per surface that currently has a beacon).
+function Teleportation_RebuildFilterButtons(container, player)
+  container.clear()
+  local p_settings = storage.Teleportation.player_settings[player.name]
+
+  local surfaces_in_use = {} -- [surface_index] = surface_name, non-platform surfaces only
+  local has_any_platform = false
+  for _, beacon in pairs(storage.Teleportation.beacons) do
+    if Common_IsEntityOk(beacon.entity) and (beacon.entity.force.name == player.force.name or settings.global["Teleportation-all-beacons-for-all"].value) then
+      local surface = beacon.entity.surface
+      if Teleportation_IsPlatformSurface(surface) then
+        has_any_platform = true
+      else
+        surfaces_in_use[surface.index] = surface.name
+      end
     end
+  end
+
+  if has_any_platform then
+    local is_active = (p_settings.filter == "platforms_group")
+    local b = container.add({type="button", name="teleportation_button_filter_platforms", caption={"", "[img=item/space-platform-starter-pack] ", {"caption-filter-platforms"}}, style = is_active and "confirm_button" or "button"})
+    b.style.horizontally_stretchable = true
+    b.style.minimal_width = 120
+  end
+
+  local sorted_surfaces = {}
+  for index, surf_name in pairs(surfaces_in_use) do
+    table.insert(sorted_surfaces, {index=index, name=surf_name})
+  end
+  table.sort(sorted_surfaces, function(a,b) return a.name < b.name end)
+
+  for _, s in ipairs(sorted_surfaces) do
+    local is_active = (p_settings.filter == s.index)
+    local display_name = "[img=space-location/" .. s.name .. "] " .. Teleportation_Capitalize(s.name)
+    local b = container.add({type="button", name="teleportation_button_filter_surf_" .. s.index, caption=display_name, style = is_active and "confirm_button" or "button"})
+    b.style.horizontally_stretchable = true
+    b.style.minimal_width = 120
   end
 end
 
 --Opens mod's main window for player.
 function Teleportation_ShowMainWindow(player)
-  if player ~= nil and player.valid and player.connected then
-    local gui = player.gui.left
-    if not gui.teleportation_main_window then
-      local window = gui.add({type="flow", name="teleportation_main_window", direction="vertical"})
-      local grid = window.add({type="table", name="teleportation_main_window_grid", column_count=2})
-      --grid.style.cell_spacing = 0
-      --grid.style.horizontal_spacing = 0
-      --grid.style.vertical_spacing = 0
-      local window_menu_paging = grid.add({type="frame", name="teleportation_window_menu_paging", direction="horizontal", style="teleportation_thin_frame"})
-      local buttonFlow = window_menu_paging.add({type="flow", name="teleportation_paging", direction="horizontal", column_count=2})
-      local button
-      button = buttonFlow.add({type="button", name="teleportation_button_page_back", style="teleportation_button_style_arrow_left"})
-      button.tooltip = {"tooltip-button-page-prev"}
-      buttonFlow.add({type="label", name="teleportation_label_page_number", caption="21-30/500", style="teleportation_label_style"})
-      button = buttonFlow.add({type="button", name="teleportation_button_page_forward", style="teleportation_button_style_arrow_right"})
-      button.tooltip = {"tooltip-button-page-next"}
-      local window_menu_sorting = grid.add({type="frame", name="teleportation_window_menu_sorting", direction="horizontal", style="teleportation_thin_frame"})
-      buttonFlow = window_menu_sorting.add({type="flow", name="teleportation_buttons_sorting", direction="horizontal", column_count=2})
-      buttonFlow.add({type="label", name="teleportation_sorting_label", caption={"label-sort-by"}, style="teleportation_label_style"})
-      button = buttonFlow.add({type="button", name="teleportation_button_sort_global", style="teleportation_button_style_globus"})
-      button.tooltip = {"tooltip-button-sort-global"}
-      button = buttonFlow.add({type="button", name="teleportation_button_sort_distance_from_player", style="teleportation_button_style_sort_from_player"})
-      button.tooltip = {"tooltip-button-sort-distance-from-player"}
-      button = buttonFlow.add({type="button", name="teleportation_button_sort_distance_from_start", style="teleportation_button_style_sort_from_start"})
-      button.tooltip = {"tooltip-button-sort-distance-from-start"}
-      button = buttonFlow.add({type="button", name="teleportation_button_sort_alphabet", style="teleportation_button_style_sort_alphabet"})
-      button.tooltip = {"tooltip-button-sort-alphabet"}
-      Teleportation_UpdateMainWindow(player)
+  if player == nil or not player.valid or not player.connected then return end
+  if player.gui.screen.teleportation_main_window then return end
+
+  Teleportation_InitializePlayerGlobals(player)
+  local p_settings = storage.Teleportation.player_settings[player.name]
+
+  local main_frame = player.gui.screen.add({type="frame", name="teleportation_main_window", direction="vertical"})
+  main_frame.style.width = 550
+
+  local title_bar = main_frame.add({type="flow", direction="horizontal"})
+  title_bar.drag_target = main_frame
+  title_bar.add({type="label", caption={"caption-main-window"}, style="frame_title"})
+  local filler = title_bar.add({type="empty-widget", style="draggable_space_header"})
+  filler.style.horizontally_stretchable = true
+  filler.style.height = 24
+  filler.drag_target = main_frame
+  title_bar.add({type="sprite-button", name="teleportation_button_open_settings", sprite="utility/notification", style="frame_action_button", tooltip={"tooltip-button-preview-settings"}})
+  title_bar.add({type="sprite-button", name="teleportation_button_close_main", sprite="utility/close", style="frame_action_button"})
+
+  main_frame.auto_center = true
+  player.opened = main_frame
+
+  local top_row = main_frame.add({type="table", name="teleportation_top_controls", column_count=2})
+  top_row.style.horizontally_stretchable = true
+  top_row.style.top_margin = 5
+  top_row.style.bottom_margin = 5
+  local tech = player.force.technologies["teleportation-space"]
+    
+  local all_btn = top_row.add({type="button", name="teleportation_button_filter_all", caption={"caption-filter-all"}, style=(p_settings.filter == nil) and "confirm_button" or "button"})
+  all_btn.style.horizontally_stretchable = true
+  all_btn.style.minimal_width = 260
+  local sort_items = {{"tooltip-button-sort-global"}, {"tooltip-button-sort-distance-from-start"}, {"tooltip-button-sort-distance-from-player"}, {"tooltip-button-sort-alphabet"}}
+  local sort_dropdown = top_row.add({type="drop-down", name="teleportation_dropdown_sort", items=sort_items, selected_index=p_settings.beacons_list_is_sorted_by})
+  sort_dropdown.style.horizontally_stretchable = true
+  sort_dropdown.style.minimal_width = 260
+
+  local filter_table = main_frame.add({type="table", name="teleportation_filter_table", column_count=4})
+  filter_table.style.horizontally_stretchable = true
+  filter_table.style.bottom_margin = 5
+  Teleportation_RebuildFilterButtons(filter_table, player)
+  
+  local search_flow = main_frame.add({type="flow", direction="horizontal"})
+  search_flow.style.vertical_align = "center"
+  search_flow.style.bottom_margin = 5
+  search_flow.add({type="label", caption={"caption-search"}})
+  local search_field = search_flow.add({type="textfield", name="teleportation_search_filter", text=p_settings.search or ""})
+  search_field.style.width = 150
+
+  local scroll = main_frame.add({type="scroll-pane", name="teleportation_scroll", vertical_scroll_policy="always"})
+  scroll.style.horizontally_stretchable = true
+  scroll.style.maximal_height = 500
+
+  Teleportation_RefreshBeaconsList(player)
+end
+
+--Adds one row (preview + info + Teleport button) representing one beacon to the beacon list table.
+function Teleportation_AddBeaconRow(container, beacon, player, zoom)
+  local p_settings = storage.Teleportation.player_settings[player.name]
+  local surface = beacon.entity.surface
+
+  local preview_frame = container.add({type="frame", style="inside_shallow_frame"})
+  preview_frame.style.minimal_width = 125
+  preview_frame.style.maximal_width = 125
+  preview_frame.style.minimal_height = 125
+  preview_frame.style.maximal_height = 125
+  preview_frame.style.padding = 0
+
+  local preview
+  if p_settings.preview_is_minimap then
+    preview = preview_frame.add({type="minimap", position=beacon.entity.position, surface_index=surface.index, force=player.force.name, zoom=zoom})
+  else
+    preview = preview_frame.add({type="camera", position=beacon.entity.position, surface_index=surface.index, zoom=zoom})
+  end
+  preview.style.minimal_width = 125
+  preview.style.maximal_width = 125
+  preview.style.minimal_height = 125
+  preview.style.maximal_height = 125
+
+  local info_flow = container.add({type="flow", direction="vertical"})
+  info_flow.style.horizontally_stretchable = true
+  info_flow.style.padding = {0, 5, 0, 5}
+
+  local name_field = info_flow.add({type="textfield", name="teleportation_rename_" .. beacon.key, text=beacon.name})
+  name_field.style.horizontally_stretchable = true
+
+  local display_surface_name = surface and surface.name or "???"
+  local icon_type = Teleportation_IsPlatformSurface(surface) and "item/space-platform-starter-pack" or ("space-location/" .. display_surface_name)
+  info_flow.add({type="label", caption="[img=" .. icon_type .. "] " .. Teleportation_Capitalize(display_surface_name), style="teleportation_label_style"})
+
+  local pos_row = info_flow.add({type="flow", direction="horizontal"})
+  local x_label = pos_row.add({type="label", caption=string.format("X: %.0f", beacon.entity.position.x)})
+  x_label.style.font_color = {r=1, g=0.3, b=0.3}
+  pos_row.add({type="label", caption=" "})
+  local y_label = pos_row.add({type="label", caption=string.format("Y: %.0f", beacon.entity.position.y)})
+  y_label.style.font_color = {r=0.3, g=1, b=0.3}
+
+  local energy_flow = info_flow.add({type="flow", name="teleportation_energy_flow_" .. beacon.key, direction="horizontal"})
+  energy_flow.style.vertical_align = "center"
+  local progress_value = 0
+  if Common_IsEntityOk(beacon.energy_interface) then
+    progress_value = beacon.energy_interface.energy / beacon.energy_interface.electric_buffer_size
+  end
+  local bar = energy_flow.add({type="progressbar", name="teleportation_beacon_energy_progressbar", size=120, value=progress_value})
+  bar.style.width = 110 
+  local energy_label = energy_flow.add({type="label", name="teleportation_energy_label", caption=Teleportation_FormatEnergyLabel(beacon)})
+  energy_label.style.font = "default-small-semibold"
+  energy_label.style.left_margin = 4
+
+  local btn_flow = container.add({type="flow", direction="vertical"})
+  btn_flow.style.minimal_width = 120
+  btn_flow.style.vertical_align = "center"
+
+  local teleport_btn = btn_flow.add({type="button", name="teleportation_button_activate_" .. beacon.key, caption={"caption-button-teleport"}, style="confirm_button"})
+  teleport_btn.style.horizontally_stretchable = true
+  teleport_btn.tooltip = {"tooltip-button-row-teleport", math.floor(Teleportation.config.energy_in_beacon_to_activate/1000000)}
+end
+
+--Updates GUI-list of beacons, if player's mod's window is opened. All filtering/sorting/searching is driven from this function.
+function Teleportation_RefreshBeaconsList(player)
+  local main_frame = player.gui.screen.teleportation_main_window
+  if not main_frame or not main_frame.teleportation_scroll then return end
+
+  Teleportation_InitializePlayerGlobals(player)
+  local p_settings = storage.Teleportation.player_settings[player.name]
+
+  if main_frame.teleportation_top_controls and main_frame.teleportation_top_controls.teleportation_button_filter_all then
+    main_frame.teleportation_top_controls.teleportation_button_filter_all.style = (p_settings.filter == nil) and "confirm_button" or "button"
+  end
+  if main_frame.teleportation_filter_table then
+    Teleportation_RebuildFilterButtons(main_frame.teleportation_filter_table, player)
+  end
+
+  local scroll = main_frame.teleportation_scroll
+  scroll.clear()
+  local list_table = scroll.add({type="table", name="teleportation_beacons_table", column_count=3})
+  list_table.style.horizontally_stretchable = true
+  list_table.style.horizontal_spacing = 8
+
+  local list_sorted = Teleportation_GetBeaconsSorted(storage.Teleportation.beacons, player.force.name, p_settings.beacons_list_is_sorted_by, player)
+  local zoom = p_settings.preview_is_minimap and p_settings.preview_zoom_minimap or p_settings.preview_zoom_camera
+
+  for _, beacon in pairs(list_sorted) do
+    if Teleportation_BeaconMatchesFilter(beacon, player) and Teleportation_BeaconMatchesSearch(beacon, player) then
+      Teleportation_AddBeaconRow(list_table, beacon, player, zoom)
     end
   end
 end
 
---Updates GUI-list of beacons, if player's mod's window is opened. All sortings are beeing initiated from this function.
+--Updates GUI-list of beacons, if player's mod's window is opened. Kept as a thin wrapper so existing call sites are unaffected.
 function Teleportation_UpdateMainWindow(player)
   if player ~= nil and player.valid and player.connected then
-    local gui = Teleportation_GetBeaconsButtonsGrid(player)
-    if gui then
-      --[[At first we'll remove existing rows (except window menu - first two gui elements in table).
-          If we'll do it in straight order, then the first column of table will be as wide as the second.]]
-      for i = #gui.children_names, 1, -1 do
-        local gui_name = gui.children_names[i]
-        if not string.find(gui_name, "window_menu") then
-          gui[gui_name].destroy()
-        end
-      end
-      local list = storage.Teleportation.beacons
-      Teleportation_InitializePlayerGlobals(player)
-      local list_sorted = Teleportation_GetBeaconsSorted(list, player.force.name, storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by, player)
-      local list_page, current_page_num, total_pages_num = Teleportation_GetListPage(player, list_sorted, storage.Teleportation.player_settings[player.name].beacons_list_current_page_num, settings.get_player_settings(player)["Teleportation-page-size"].value)
-      gui.teleportation_window_menu_paging.teleportation_paging.teleportation_label_page_number.caption = current_page_num .. "/" .. total_pages_num
-      --Now let's add by one row for each beacon.
-      for i, beacon in pairs(list_page) do
-        if player.force.name == beacon.entity.force.name or settings.global["Teleportation-all-beacons-for-all"].value then
-          Teleportation_InitializePlayerGlobals(player)
-          local sort_type = storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by
-          Teleportation_AddRow(gui, beacon, i, sort_type)
-        end
-      end
-    end
+    Teleportation_RefreshBeaconsList(player)
   end
 end
 
---Closes mod window for player.
+--Closes mod window (and its preview-settings popup, if open) for player.
 function Teleportation_HideMainWindow(player)
   if player ~= nil and player.valid then
-    local gui = player.gui.left
-    if gui.teleportation_main_window then
-      gui["teleportation_main_window"].destroy()
+    if player.gui.screen.teleportation_settings_window then
+      player.gui.screen.teleportation_settings_window.destroy()
+    end
+    if player.gui.screen.teleportation_main_window then
+      player.gui.screen.teleportation_main_window.destroy()
     end
   end
 end
@@ -950,11 +1112,7 @@ end
 --Closes opened mod window for player and opens closed window.
 function Teleportation_SwitchMainWindow(player)
   if player ~= nil and player.valid and player.connected then
-    if not player.gui.top.teleportation_main_button then
-      return
-    end
-    local gui = player.gui.left
-    if gui.teleportation_main_window then
+    if player.gui.screen.teleportation_main_window then
       Teleportation_HideMainWindow(player)
     else
       Teleportation_ShowMainWindow(player)
@@ -962,97 +1120,123 @@ function Teleportation_SwitchMainWindow(player)
   end
 end
 
---Adds rob with buttons and labels. One row represents one beacon. Index-based naming is not good, because rows should be sortable.
-function Teleportation_AddRow(container, beacon, index, sort_type)
-  local frame = container.add({type="frame", name="teleportation_buttons_tools_" .. index, direction="horizontal", style="teleportation_thin_frame"})
-  local buttonFlow = frame.add({type="flow", name=beacon.key, direction="horizontal"})
-  buttonFlow.add({type="button", name="teleportation_button_activate", style="teleportation_button_style_teleport"})
-  local button = buttonFlow.add({type="button", name="teleportation_button_rename", style="teleportation_button_style_edit"})
-	button.tooltip = {"tooltip-button-rename"}
-  if sort_type == 1 then
-    local replacerFlow = buttonFlow.add({type="flow", name=beacon.key, direction="vertical"})
-    replacerFlow.add({type="button", name="teleportation_button_order_up", style="teleportation_button_style_arrow_up"})
-    replacerFlow.add({type="button", name="teleportation_button_order_down", style="teleportation_button_style_arrow_down"})
+--Opens/closes the small preview-settings popup (camera/minimap zoom + mode switch) next to the main window.
+function Teleportation_ToggleSettingsWindow(player)
+  local main_frame = player.gui.screen.teleportation_main_window
+  if not main_frame then return end
+
+  if player.gui.screen.teleportation_settings_window then
+    player.gui.screen.teleportation_settings_window.destroy()
+    return
   end
-  frame = container.add({type="frame", name=beacon.key, direction="horizontal", style="teleportation_thin_frame"})
-  local flow = frame.add({type="flow", name=beacon.key, direction="vertical"})
-  local label = flow.add({type="label", name="teleportation_label_beacons_name", caption=beacon.name, style="teleportation_label_style"})
-  label.style.top_padding = 0
-  local progress = flow.add({type="progressbar", name="teleportation_beacon_energy_progressbar", size=150, value=beacon.energy_interface.energy/beacon.energy_interface.electric_buffer_size--[[, style="teleportation_beacon_energy_progressbar"]]})
-  progress.style.top_padding = 0
+
+  Teleportation_InitializePlayerGlobals(player)
+  local p_settings = storage.Teleportation.player_settings[player.name]
+
+  local settings_frame = player.gui.screen.add({type="frame", name="teleportation_settings_window", direction="vertical", caption={"caption-preview-settings"}})
+  settings_frame.location = {x = main_frame.location.x + 700 + 5, y = main_frame.location.y + 70}
+
+  local inner = settings_frame.add({type="frame", style="inside_shallow_frame_with_padding", direction="vertical"})
+
+  local mode_caption = p_settings.preview_is_minimap and {"caption-minimap-zoom"} or {"caption-camera-zoom"}
+  inner.add({type="label", caption=mode_caption})
+  local zoom_value = p_settings.preview_is_minimap and p_settings.preview_zoom_minimap or p_settings.preview_zoom_camera
+  local zoom_field = inner.add({type="textfield", name="teleportation_setting_zoom", text=tostring(zoom_value)})
+  zoom_field.style.width = 100
+  zoom_field.numeric = true
+  zoom_field.allow_decimal = true
+
+  inner.add({type="label", caption={"caption-preview-mode"}, style="bold_label"})
+  local switch_flow = inner.add({type="flow", direction="horizontal"})
+  switch_flow.style.vertical_align = "center"
+  switch_flow.add({type="label", caption={"caption-preview-mode-real"}})
+  switch_flow.add({type="switch", name="teleportation_setting_minimap_switch", switch_state = p_settings.preview_is_minimap and "right" or "left"})
+  switch_flow.add({type="label", caption={"caption-preview-mode-minimap"}})
 end
 
---Returns GUI-container for putting rows representing beacons. If mod window is hidden for the specified player, returns nil.
-function Teleportation_GetBeaconsButtonsGrid(player)
-  if player.gui.left.teleportation_main_window then
-    local container = player.gui.left["teleportation_main_window"]
-    if container.teleportation_main_window_grid then
-      container = container["teleportation_main_window_grid"]
-      return container
+script.on_event(defines.events.on_gui_selection_state_changed, function(event)
+  if event.element.name == "teleportation_dropdown_sort" then
+    local player = game.players[event.player_index]
+    Teleportation_InitializePlayerGlobals(player)
+    storage.Teleportation.player_settings[player.name].beacons_list_is_sorted_by = event.element.selected_index
+    Teleportation_RefreshBeaconsList(player)
+  end
+end)
+
+script.on_event(defines.events.on_gui_switch_state_changed, function(event)
+  if event.element.name == "teleportation_setting_minimap_switch" then
+    local player = game.players[event.player_index]
+    Teleportation_InitializePlayerGlobals(player)
+    local p_settings = storage.Teleportation.player_settings[player.name]
+    p_settings.preview_is_minimap = (event.element.switch_state == "right")
+
+    local settings_window = player.gui.screen.teleportation_settings_window
+    if settings_window then
+      local new_zoom = p_settings.preview_is_minimap and p_settings.preview_zoom_minimap or p_settings.preview_zoom_camera
+      settings_window.children[1].teleportation_setting_zoom.text = tostring(new_zoom)
+    end
+
+    Teleportation_RefreshBeaconsList(player)
+  end
+end)
+
+script.on_event(defines.events.on_gui_text_changed, function(event)
+  local player = game.players[event.player_index]
+  local element = event.element
+  local name = element.name
+
+  if name == "teleportation_search_filter" then
+    Teleportation_InitializePlayerGlobals(player)
+    storage.Teleportation.player_settings[player.name].search = element.text
+    Teleportation_RefreshBeaconsList(player)
+
+  elseif name == "teleportation_setting_zoom" then
+    local val = tonumber(element.text)
+    if val and val >= 0.03 and val <= 1.0 then
+      Teleportation_InitializePlayerGlobals(player)
+      local p_settings = storage.Teleportation.player_settings[player.name]
+      if p_settings.preview_is_minimap then
+        p_settings.preview_zoom_minimap = val
+      else
+        p_settings.preview_zoom_camera = val
+      end
+      Teleportation_RefreshBeaconsList(player)
+    end
+
+  elseif name:sub(1, #"teleportation_rename_") == "teleportation_rename_" then
+    local beacon_key = name:sub(#"teleportation_rename_" + 1)
+    local beacon = Common_GetBeaconByKey(beacon_key)
+    if beacon then
+      beacon.name = element.text
+      if beacon.marker and beacon.marker.valid then
+        beacon.marker.text = element.text
+      end
     end
   end
-  return nil
-end
+end)
 
-function Teleportation_OpenRenameWindow(player, beacon_key)
-  local gui = player.gui.center
-  if gui.teleportation_rename_window then
-    return
+script.on_event(defines.events.on_gui_closed, function(event)
+  if event.element and event.element.valid and event.element.name == "teleportation_main_window" then
+    Teleportation_HideMainWindow(game.players[event.player_index])
   end
-  local beacon = Common_GetBeaconByKey(beacon_key)
-  local frame = gui.add({type="frame", name="teleportation_rename_window", direction="vertical", caption={"caption-rename-window"}})
-  local text_box = frame.add({type="textfield", name="teleportation_rename_textbox", style="teleportation_textbox"})
-  text_box.text = beacon.name
-  local flow = frame.add({type="flow", name=beacon.key, direction="horizontal"})
-  flow.add({type="button", name = "teleportation_rename_window_button_cancel", caption={"caption-button-cancel"}})
-  flow.add({type="button", name = "teleportation_rename_window_button_ok" , caption={"caption-button-ok"}})
-end
+end)
 
-function Teleportation_CloseRenameWindow(player)
-  local gui = player.gui.center
-  if gui.teleportation_rename_window then
-    gui.teleportation_rename_window.destroy()
-  end
-end
-
-function Teleportation_SaveNewBeaconsName(player, beacon_key)
-  local gui = player.gui.center
-  if not gui.teleportation_rename_window then
-    return
-  end
-  local beacon = Common_GetBeaconByKey(beacon_key)
-  local new_name = gui.teleportation_rename_window.teleportation_rename_textbox.text
-  if string.len(new_name) < 2 then
-    new_name = Common_CreateEntityName(beacon.entity)
-  end
-  beacon.name = new_name
-  if beacon.marker and beacon.marker.valid then
-		beacon.marker.text = new_name
-	else
-		local chart_tag = {
-			icon = {type = "item", name = "teleportation-portal"},
-			position = beacon.entity.position,
-			text = new_name,
-			last_user = beacon.entity.last_user,
-			target = beacon.entity
-		}
-		beacon.marker = beacon.entity.force.add_chart_tag(beacon.entity.surface, chart_tag)
-	end
-  gui.teleportation_rename_window.destroy()
-end
-
+--Periodically refreshes the energy bar/label of every visible row, without rebuilding the whole list (cheaper than a full redraw).
 function Teleportation_EnergyProgressUpdate()
   for i, player in pairs(game.players) do
-    --UpdateMainWindow(player) -- it's too ineffective to repeat GUI recreation, it's better to update it (see below)
-    local gui = Teleportation_GetBeaconsButtonsGrid(player)
-    if gui then
-      for i = #gui.children_names, 1, -1 do
-        local gui_name = gui.children_names[i]
-        if not string.find(gui_name, "window_menu") then
-          if gui[gui_name][gui_name] and gui[gui_name][gui_name]["teleportation_beacon_energy_progressbar"] then
-            local beacon = Common_GetBeaconByKey(gui_name)
-            if beacon and Common_IsEntityOk(beacon.energy_interface) then
-              gui[gui_name][gui_name]["teleportation_beacon_energy_progressbar"].value = beacon.energy_interface.energy / beacon.energy_interface.electric_buffer_size
+    local main_frame = player.gui.screen.teleportation_main_window
+    local list_table = main_frame and main_frame.teleportation_scroll and main_frame.teleportation_scroll.teleportation_beacons_table
+    if list_table then
+      for _, row_element in pairs(list_table.children) do
+        if row_element.type == "flow" and row_element.direction == "vertical" then
+          for _, sub_el in pairs(row_element.children) do
+            if sub_el.type == "flow" and sub_el.name and sub_el.name:sub(1, #"teleportation_energy_flow_") == "teleportation_energy_flow_" then
+              local beacon_key = sub_el.name:sub(#"teleportation_energy_flow_" + 1)
+              local beacon = Common_GetBeaconByKey(beacon_key)
+              if beacon and Common_IsEntityOk(beacon.energy_interface) then
+                sub_el["teleportation_beacon_energy_progressbar"].value = beacon.energy_interface.energy / beacon.energy_interface.electric_buffer_size
+                sub_el["teleportation_energy_label"].caption = Teleportation_FormatEnergyLabel(beacon)
+              end
             end
           end
         end
@@ -1086,12 +1270,25 @@ function Teleportation_CloseBeaconReminder(player)
   end
 end
 
+--Hides mod's toolbar button for player.
+function Teleportation_HideMainButton(player)
+    if player ~= nil and player.valid then
+    local gui = player.gui.top
+    if gui.teleportation_main_button then
+      gui.teleportation_main_button.destroy()
+    end
+  end
+end
+
 --===================================================================--
 --############################ MIGRATIONS ###########################--
 --===================================================================--
 function Teleportation_Migrate() 
   for i, force in pairs(game.forces) do
     Teleportation_UpdateGui(force, true)
+  end
+  for i, player in pairs(game.players) do
+    Teleportation_HideMainButton(player)
   end
   -- There used to be a version check here. It's gone now.
   if script.active_mods["Teleportation_Redux"] then

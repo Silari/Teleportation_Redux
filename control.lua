@@ -1,8 +1,8 @@
 -- Old TODO notes from old-changelist.txt:
--- • add Telelogistics balance: Beacons spend energy to collect items from Teleproviders. Energy is being spent per each item teleported and depends on distance [and item complexity]
--- • add global setting: switch if the Beacons should reserve some energy to be ready to accept player's teleportation (or it should be per-Beacon setting) : SILARI: this seems pointless, unless maybe in conjunction with telelogistics energy use. No point reserving energy for teleporting if the only energy use IS teleporting.
--- • add Telelogistics feature: player can be supplied with requested items via Teleproviders, if he's equipped with Personal Teleporter equipment and it's charged enough and he's got enough free inventory space
--- • add ability to copy-paste Teleprovider settings (a linked destination Beacon is being meant)
+-- ï¿½ add Telelogistics balance: Beacons spend energy to collect items from Teleproviders. Energy is being spent per each item teleported and depends on distance [and item complexity]
+-- ï¿½ add global setting: switch if the Beacons should reserve some energy to be ready to accept player's teleportation (or it should be per-Beacon setting) : SILARI: this seems pointless, unless maybe in conjunction with telelogistics energy use. No point reserving energy for teleporting if the only energy use IS teleporting.
+-- ï¿½ add Telelogistics feature: player can be supplied with requested items via Teleproviders, if he's equipped with Personal Teleporter equipment and it's charged enough and he's got enough free inventory space
+-- ï¿½ add ability to copy-paste Teleprovider settings (a linked destination Beacon is being meant)
 
 -- Silari's TODO notes
 

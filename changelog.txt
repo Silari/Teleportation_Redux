@@ -3,6 +3,19 @@ Version: 2.1.1
   Bugfixes:
     - Fixed error when mod configuration changes due to attempt to set .active.
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+  Features:
+    - New GUI featuring real-time camera previews and multi-surface filtering from https://mods.factorio.com/mod/KhalcTeleport
+    - Locked interplanetary teleportation behind a new tech
+  Changes:
+    - Increased costs
+  Bugfixes:
+    - Fixed render_layer on the beacon and its electric-energy-interface companion: it was set to
+      the bare identifier `decorative` instead of the string "decorative", which silently evaluated
+      to nil and dropped the field.
+  Modding:
+    - Updated to Factorio 2.1.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.4
   Modding:
     - Added flag to allow beacons to be built on Space Exploration platforms.
